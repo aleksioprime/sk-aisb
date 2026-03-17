@@ -4,7 +4,7 @@ import time
 import RPi.GPIO as GPIO
 
 
-DEFAULT_PIN = 18
+DEFAULT_PIN = 12
 DEFAULT_FREQUENCY = 50.0
 DEFAULT_MIN_PULSE_US = 500.0
 DEFAULT_MAX_PULSE_US = 2500.0
@@ -104,7 +104,7 @@ def main() -> None:
         "--pin",
         type=int,
         default=DEFAULT_PIN,
-        help="BCM номер GPIO-пина для сигнала сервомотора.",
+        help="BCM номер GPIO-пина для сигнала сервомотора. Для вашего стенда по умолчанию GPIO 12.",
     )
     parser.add_argument(
         "--mode",
