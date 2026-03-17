@@ -9,7 +9,7 @@ from picamera2 import Picamera2
 # Глобальные настройки
 # ======================
 
-MODEL_PATH = "example.pt"
+DEFAULT_MODEL_PATH = "example.pt"
 
 CONF_THRES = 0.35
 IMG_SIZE = 320
@@ -22,6 +22,11 @@ PRINT_EVERY_SEC = 1.0
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL_PATH,
+        help="Путь к файлу весов YOLO (.pt)."
+    )
+    parser.add_argument(
         "--headless",
         action="store_true",
         help="Без окна (подходит для SSH/без GUI). Если указан — imshow/waitKey не вызываются."
@@ -29,7 +34,7 @@ def main():
     args = parser.parse_args()
 
     print("Loading YOLO model...")
-    model = YOLO(MODEL_PATH)
+    model = YOLO(args.model)
 
     print("Starting Picamera2...")
     picam2 = Picamera2()
@@ -48,13 +53,13 @@ def main():
             # 1) Захват (RGB)
             frame_rgb = picam2.capture_array()
 
-            # 3) Для инференса делаем BGR
+            # Для Ultralytics numpy-кадр должен быть в BGR, как и у OpenCV VideoCapture.
             frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
 
             # 4) Инференс
             t0 = time()
             results = model(
-                frame_rgb,
+                frame_bgr,
                 conf=CONF_THRES,
                 imgsz=IMG_SIZE,
                 verbose=False

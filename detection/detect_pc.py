@@ -3,12 +3,21 @@
 # Требования: pip install ultralytics opencv-python
 
 from ultralytics import YOLO
+import argparse
 import cv2
 
-MODEL_PATH = "example.pt"
+DEFAULT_MODEL_PATH = "example.pt"
 
 def main():
-    model = YOLO(MODEL_PATH)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL_PATH,
+        help="Путь к файлу весов YOLO (.pt)."
+    )
+    args = parser.parse_args()
+
+    model = YOLO(args.model)
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
