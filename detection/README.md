@@ -54,20 +54,20 @@ python detection/detect_pc.py --model detection/example.pt --conf 0.50
 Базовый запуск:
 
 ```bash
-python detection/detect_rpi.py --model detection/example.pt
+python detect_rpi.py --model example.pt
 ```
 
 Запуск без окна:
 
 ```bash
-python detection/detect_rpi.py --model detection/example.pt --headless
+python detect_rpi.py --model example.pt --headless
 ```
 
 Рекомендуемый старт для Raspberry Pi Zero 2 W:
 
 ```bash
-python detection/detect_rpi.py \
-  --model detection/example.pt \
+python detect_rpi.py \
+  --model example.pt \
   --conf 0.55 \
   --imgsz 320 \
   --camera-width 640 \
@@ -78,8 +78,8 @@ python detection/detect_rpi.py \
 Более осторожный вариант, если сеть путает классы:
 
 ```bash
-python detection/detect_rpi.py \
-  --model detection/example.pt \
+python detect_rpi.py \
+  --model example.pt \
   --conf 0.60 \
   --imgsz 320 \
   --camera-width 640 \
@@ -90,8 +90,8 @@ python detection/detect_rpi.py \
 Более точный, но более тяжёлый вариант:
 
 ```bash
-python detection/detect_rpi.py \
-  --model detection/example.pt \
+python detect_rpi.py \
+  --model example.pt \
   --conf 0.55 \
   --imgsz 416 \
   --camera-width 640 \
