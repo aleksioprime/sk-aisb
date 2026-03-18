@@ -4,11 +4,11 @@
 
 ## Файлы
 
-- [detect_pc.py](/Users/aleksioprime/edu/gymnasium/sk-aisb/detection/detect_pc.py)
+- [detect_pc.py](detect_pc.py)
   Минимальный запуск детекции с обычной веб-камеры через OpenCV на ПК.
-- [detect_rpi.py](/Users/aleksioprime/edu/gymnasium/sk-aisb/detection/detect_rpi.py)
+- [detect_rpi.py](detect_rpi.py)
   Детекция на Raspberry Pi через `Picamera2` с настраиваемыми параметрами модели и камеры.
-- [example.pt](/Users/aleksioprime/edu/gymnasium/sk-aisb/detection/example.pt)
+- [example.pt](example.pt)
   Файл весов YOLO, который используется по умолчанию.
 
 ## Зависимости
@@ -26,7 +26,7 @@ sudo apt install -y python3-picamera2
 pip install ultralytics opencv-python
 ```
 
-Подробная настройка окружения для Raspberry Pi описана в [README.md](/Users/aleksioprime/edu/gymnasium/sk-aisb/README.md).
+Подробная настройка окружения для Raspberry Pi описана в [docs/setup-rpi.md](../docs/setup-rpi.md).
 
 ## Запуск на ПК
 

@@ -1,118 +1,68 @@
-# Установка окружения на Raspbery Pi (64 bit)
+# sk-aisb
 
-- Raspberry Pi Zero 2W: Raspberry Pi OS (Legacy, 64-bit) Lite - A port of Debian Bookworm with security updates and no desktop environment
-- Raspberry Pi 4: Raspberry Pi OS (64-bit) - A port of Debian Trixie with the Raspberry Pi Desktop
+Небольшой репозиторий для работы с компьютерным зрением на ПК и Raspberry Pi:
 
-Обновите список доступных пакетов:
-```sh
-sudo apt update
+- сбор изображений с камер;
+- проверка камеры и быстрые тесты;
+- обучение и экспорт YOLO-моделей;
+- локальная детекция;
+- передача видеопотока с Raspberry Pi на ПК с распознаванием.
+
+## Структура
+
+- [docs/README.md](docs/README.md)
+  Общая документация и установка окружения.
+- [collect/README.md](collect/README.md)
+  Сбор датасета с ПК и Raspberry Pi.
+- [checking/README.md](checking/README.md)
+  Быстрые проверки камер и тестовые скрипты.
+- [training/README.md](training/README.md)
+  Ноутбуки, зависимости и данные для обучения.
+- [prepare/README.md](prepare/README.md)
+  Экспорт моделей, включая NCNN.
+- [detection/README.md](detection/README.md)
+  Локальный запуск детекции на ПК и Raspberry Pi.
+- [network/README.md](network/README.md)
+  Стрим с Raspberry Pi на ПК и распознавание на стороне ПК.
+- [servo_test/README.md](servo_test/README.md)
+  Тест сервопривода на Raspberry Pi.
+
+## Быстрый маршрут по проекту
+
+1. Подготовить окружение: [docs/setup-rpi.md](docs/setup-rpi.md)
+2. Проверить камеру: [checking/README.md](checking/README.md)
+3. Собрать снимки: [collect/README.md](collect/README.md)
+4. Обучить или обновить модель: [training/README.md](training/README.md)
+5. При необходимости экспортировать модель: [prepare/README.md](prepare/README.md)
+6. Запустить детекцию локально или по сети:
+   [detection/README.md](detection/README.md),
+   [network/README.md](network/README.md)
+
+## Основные сценарии
+
+Локальная детекция на ПК:
+
+```bash
+python detection/detect_pc.py --model detection/example.pt
 ```
 
-Установите обновления для всех пакетов:
-```sh
-sudo apt upgrade -y
+Локальная детекция на Raspberry Pi:
+
+```bash
+python detection/detect_rpi.py --model detection/example.pt
 ```
 
-Проверьте камеру:
-```sh
-sudo rpicam-hello
+Стрим с Raspberry Pi на ПК:
+
+```bash
+# Raspberry Pi
+python network/stream_server_rpi.py
+
+# PC
+python network/stream_client_pc.py --host <IP_RPI> --port 5000 --model detection/example.pt
 ```
 
-Установите системную Python-библиотеку picamera2 для работы с камерой через libcamera:
-```sh
-sudo apt install -y python3-picamera2
-```
+## Замечания
 
-## Создание виртуального окружения virtualenv:
-
-Установите среду виртуального окружения (если необходимо):
-```sh
-sudo apt install python3-venv
-```
-
-Создайте виртуальное окружение (с доступом к пакетам, установленным в системе):
-```sh
-python -m venv --system-site-packages ~/venv
-```
-
-Запустите виртуальное окружение и обновите менеджер pip:
-```sh
-source ~/venv/bin/activate
-pip install --upgrade pip
-```
-
-Для деактивации виртуального окружения:
-```sh
-deactivate
-```
-
-Для удаления виртуального окружения:
-```sh
-rm -rf ~/venv
-```
-
-Установите дополнительные зависимости:
-```sh
-pip install wheel
-```
-
-Для просмотра индексов пакета можно использовать `pip index versions <имя пакета>`
-
-Установите библиотеку opencv:
-```sh
-pip install opencv-python==4.11.0.86
-```
-
-Установите пакет для YOLO:
-```sh
-pip install ultralytics==8.4.9
-```
-
-Проверьте установки:
-```sh
-python -c "import picamera2; print('PiCamera2 - OK')"
-python -c "import numpy; print(numpy.__version__)"
-python -c "import cv2; print(cv2.__version__)"
-python -c "import torch; print(torch.__version__)"
-python -c "import torchvision; print(torchvision.__version__)"
-python -c "import ultralytics; print(ultralytics.__version__)"
-```
-
-Если для cameralib понадобится `numpy<2`, то переустановите на `numpy-1.26.4`:
-```sh
-pip install --force-reinstall numpy==1.26.4
-```
-
-Если torch выдаёт ошибку `Illegal instruction`, то установи другую версию torch:
-```sh
-pip install --force-reinstall torch==2.9.0
-pip install --force-reinstall torchvision==0.24.0
-```
-
-Проверка работы камеры:
-```sh
-python
->> from picamera2 import Picamera2
->> picam2 = Picamera2()
->> picam2.configure(picam2.create_still_configuration())
->> picam2.start()
->> picam2.capture_file("photo.jpg")
->> picam2.stop()
->> exit()
-```
-
-Проверка работы YOLO:
-```sh
-curl -L -o bus.jpg https://ultralytics.com/images/bus.jpg
-python
->> from ultralytics import YOLO
->> model = YOLO("yolov8n.pt")
->> results = model("bus.jpg", imgsz=320, verbose=True)
->> print("Inference OK. Detections:", results[0].boxes.shape[0])
->> exit()
-```
-
-Если будет выходит ошибка `ImportError: libGL.so.1: cannot open shared object file: No such file or directory`, то установите зависимости:
-```sh
-sudo apt install libgl1
-```
+- Для `Raspberry Pi Zero 2 W` лучше начинать с умеренных параметров качества и размера кадра.
+- В папках проекта лежат как рабочие скрипты, так и тестовые/диагностические утилиты.

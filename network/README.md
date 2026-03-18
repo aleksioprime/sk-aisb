@@ -2,9 +2,9 @@
 
 В этой папке лежат две минимальные программы:
 
-- [stream_server_rpi.py](/Users/aleksioprime/edu/gymnasium/sk-aisb/network/stream_server_rpi.py)
+- [stream_server_rpi.py](stream_server_rpi.py)  
   Запускается на Raspberry Pi, поднимает TCP-сервер, читает кадры с `Picamera2` и отдаёт их как JPEG-поток.
-- [stream_client_pc.py](/Users/aleksioprime/edu/gymnasium/sk-aisb/network/stream_client_pc.py)
+- [stream_client_pc.py](stream_client_pc.py)  
   Запускается на ПК, подключается к Raspberry Pi, принимает JPEG-кадры и распознаёт их через YOLO.
 
 ## Зависимости
@@ -27,16 +27,16 @@ pip install ultralytics opencv-python numpy
 Сначала на Raspberry Pi запустите сервер:
 
 ```bash
-python stream_server_rpi.py
+python network/stream_server_rpi.py
 ```
 
 Потом на ПК запустите клиент и укажите IP-адрес Raspberry Pi:
 
 ```bash
-python network/stream_client_pc.py --host 192.168.1.102 --port 5000 --model network/yolov8n.pt
+python network/stream_client_pc.py --host 192.168.1.102 --port 5000 --model detection/example.pt
 ```
 
-Здесь `192.168.1.50` нужно заменить на реальный IP-адрес Raspberry Pi в локальной сети.
+Здесь `192.168.1.102` нужно заменить на реальный IP-адрес Raspberry Pi в локальной сети.
 
 ## Параметры
 
