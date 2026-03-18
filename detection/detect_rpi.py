@@ -1,4 +1,4 @@
-from time import time
+from time import sleep, time
 import argparse
 
 import cv2
@@ -11,10 +11,11 @@ from picamera2 import Picamera2
 
 DEFAULT_MODEL_PATH = "example.pt"
 
-CONF_THRES = 0.35
-IMG_SIZE = 320
+DEFAULT_CONF_THRES = 0.50
+DEFAULT_IMG_SIZE = None
 
-CAMERA_SIZE = (640, 480)
+DEFAULT_CAMERA_SIZE = (640, 480)
+DEFAULT_WARMUP_SEC = 1.0
 
 PRINT_EVERY_SEC = 1.0
 
@@ -25,6 +26,36 @@ def main():
         "--model",
         default=DEFAULT_MODEL_PATH,
         help="Путь к файлу весов YOLO (.pt)."
+    )
+    parser.add_argument(
+        "--conf",
+        type=float,
+        default=DEFAULT_CONF_THRES,
+        help="Порог confidence. Для уменьшения ложных классов обычно повышают до 0.5-0.7."
+    )
+    parser.add_argument(
+        "--imgsz",
+        type=int,
+        default=DEFAULT_IMG_SIZE,
+        help="Размер входа YOLO. Если не указан, используется поведение модели по умолчанию."
+    )
+    parser.add_argument(
+        "--camera-width",
+        type=int,
+        default=DEFAULT_CAMERA_SIZE[0],
+        help="Ширина кадра Picamera2."
+    )
+    parser.add_argument(
+        "--camera-height",
+        type=int,
+        default=DEFAULT_CAMERA_SIZE[1],
+        help="Высота кадра Picamera2."
+    )
+    parser.add_argument(
+        "--warmup-sec",
+        type=float,
+        default=DEFAULT_WARMUP_SEC,
+        help="Сколько секунд подождать после запуска камеры для автоэкспозиции и AWB."
     )
     parser.add_argument(
         "--headless",
@@ -38,11 +69,13 @@ def main():
 
     print("Starting Picamera2...")
     picam2 = Picamera2()
-    config = picam2.create_preview_configuration(
-        main={"size": CAMERA_SIZE, "format": "RGB888"}
+    camera_size = (args.camera_width, args.camera_height)
+    config = picam2.create_video_configuration(
+        main={"size": camera_size, "format": "RGB888"}
     )
     picam2.configure(config)
     picam2.start()
+    sleep(args.warmup_sec)
 
     print("Camera started. Inference running...\n")
 
@@ -50,20 +83,19 @@ def main():
 
     try:
         while True:
-            # 1) Захват (RGB)
-            frame_rgb = picam2.capture_array()
-
-            # Для Ultralytics numpy-кадр должен быть в BGR, как и у OpenCV VideoCapture.
-            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            # RGB888 from Picamera2 already matches the channel order expected by OpenCV.
+            frame = picam2.capture_array()
 
             # 4) Инференс
             t0 = time()
-            results = model(
-                frame_bgr,
-                conf=CONF_THRES,
-                imgsz=IMG_SIZE,
-                verbose=False
-            )
+            predict_kwargs = {
+                "conf": args.conf,
+                "verbose": False,
+            }
+            if args.imgsz is not None:
+                predict_kwargs["imgsz"] = args.imgsz
+
+            results = model(frame, **predict_kwargs)
             infer_ms = (time() - t0) * 1000.0
 
             r0 = results[0]
@@ -73,7 +105,7 @@ def main():
             # 5) Печать раз в секунду
             now = time()
             if now - last_print >= PRINT_EVERY_SEC:
-                h, w = frame_bgr.shape[:2]
+                h, w = frame.shape[:2]
                 print(f"Frame: {w}x{h} | det={n} | infer={infer_ms:.1f} ms")
 
                 if n > 0:

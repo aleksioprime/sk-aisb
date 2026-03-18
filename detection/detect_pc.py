@@ -4,9 +4,12 @@
 
 from ultralytics import YOLO
 import argparse
+from pathlib import Path
 import cv2
 
-DEFAULT_MODEL_PATH = "example.pt"
+DEFAULT_MODEL_PATH = str(Path(__file__).resolve().parent / "example.pt")
+DEFAULT_CONF = 0.50
+DEFAULT_JPEG_QUALITY = 80
 
 def main():
     parser = argparse.ArgumentParser()
@@ -15,9 +18,16 @@ def main():
         default=DEFAULT_MODEL_PATH,
         help="Путь к файлу весов YOLO (.pt)."
     )
+    parser.add_argument(
+        "--conf",
+        type=float,
+        default=DEFAULT_CONF,
+        help="Порог confidence."
+    )
     args = parser.parse_args()
 
     model = YOLO(args.model)
+    encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), DEFAULT_JPEG_QUALITY]
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
@@ -28,8 +38,17 @@ def main():
         if not ok:
             break
 
+        # Simulate the JPEG quality used in the Raspberry Pi stream for comparison.
+        ok, encoded = cv2.imencode(".jpg", frame, encode_params)
+        if not ok:
+            continue
+
+        frame = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+        if frame is None:
+            continue
+
         # Инференс
-        results = model(frame, conf=0.50, verbose=False)
+        results = model(frame, conf=args.conf, verbose=False)
 
         # Отрисовка боксов и вывод
         annotated = results[0].plot()
