@@ -19,13 +19,6 @@
 pip install ultralytics opencv-python
 ```
 
-Для Raspberry Pi:
-
-```bash
-sudo apt install -y python3-picamera2
-pip install ultralytics opencv-python
-```
-
 Подробная настройка окружения для Raspberry Pi описана в [docs/setup-rpi.md](../docs/setup-rpi.md).
 
 ## Запуск на ПК

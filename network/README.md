@@ -2,25 +2,10 @@
 
 В этой папке лежат две минимальные программы:
 
-- [stream_server_rpi.py](stream_server_rpi.py)  
+- [stream_server_rpi.py](stream_server_rpi.py)
   Запускается на Raspberry Pi, поднимает TCP-сервер, читает кадры с `Picamera2` и отдаёт их как JPEG-поток.
-- [stream_client_pc.py](stream_client_pc.py)  
+- [stream_client_pc.py](stream_client_pc.py)
   Запускается на ПК, подключается к Raspberry Pi, принимает JPEG-кадры и распознаёт их через YOLO.
-
-## Зависимости
-
-Raspberry Pi:
-
-```bash
-sudo apt install -y python3-picamera2
-pip install opencv-python
-```
-
-ПК:
-
-```bash
-pip install ultralytics opencv-python numpy
-```
 
 ## Порядок запуска
 
