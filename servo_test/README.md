@@ -2,7 +2,15 @@
 
 Скрипт [test_servo_rpi.py](test_servo_rpi.py) проверяет сервомотор, подключённый к Raspberry Pi по PWM-сигналу.
 
-По умолчанию выбран `GPIO 12`, так как у вас сервопривод подключён к PWM-пину. При необходимости можно передать `--pin 13`.
+В аргументах указывается только GPIO-пин. Все остальные параметры редактируются в начале файла:
+
+- `DEFAULT_FREQUENCY`
+- `DEFAULT_MIN_PULSE_US`
+- `DEFAULT_MAX_PULSE_US`
+- `DEFAULT_MIN_ANGLE`
+- `DEFAULT_MAX_ANGLE`
+- `DEFAULT_CENTER_ANGLE`
+- `DEFAULT_DELAY`
 
 Перед запуском:
 
@@ -16,34 +24,37 @@
 python servo_test/test_servo_rpi.py --pin 12
 ```
 
-Проверка центра:
+После запуска в консоли доступны команды:
 
-```bash
-python servo_test/test_servo_rpi.py --pin 12 --mode center --center-angle 90
+- `set <angle>`  
+  поставить сервомотор на заданный угол
+- `turn <delta>`  
+  повернуть относительно текущего угла
+- `center`  
+  поставить на центральный угол
+- `status`  
+  показать текущий угол
+- `help`  
+  показать список команд
+- `quit`  
+  выход
+
+Примеры команд внутри программы:
+
+```text
+servo> center
+servo> set 30
+servo> turn 15
+servo> turn -20
+servo> status
+servo> quit
 ```
 
-Проверка нескольких углов:
-
-```bash
-python servo_test/test_servo_rpi.py --pin 12 --mode angles --angles 0,45,90,135,180
-```
-
-Медленный прогон туда-обратно:
-
-```bash
-python servo_test/test_servo_rpi.py --pin 12 --mode sweep --step 10 --delay 1.0 --repeat 0
-```
-
-Если сервомотор упирается в край или дрожит, подберите диапазон импульсов:
-
-```bash
-python servo_test/test_servo_rpi.py --pin 12 --min-pulse-us 600 --max-pulse-us 2400
-```
+Если сервомотор упирается в край, дрожит или нужен другой центр, измените константы в самом файле.
 
 Примечания:
 
 - стандартно используется `50 Hz`;
 - текущая реализация построена на `RPi.GPIO`, то есть это программный PWM; если нужен именно hardware PWM на `GPIO 12/13`, лучше переписать утилиту на `pigpio` или `lgpio`;
 - типичный диапазон для большинства servo: `500..2500 us`, но у конкретной модели он может отличаться;
-- `--repeat 0` означает бесконечный цикл до `Ctrl+C`;
-- по умолчанию PWM отключается при завершении, флаг `--keep-active` оставляет удержание позиции.
+- при выходе PWM отключается и GPIO очищаются.

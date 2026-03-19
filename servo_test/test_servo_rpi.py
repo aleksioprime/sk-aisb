@@ -4,31 +4,18 @@ import time
 import RPi.GPIO as GPIO
 
 
-DEFAULT_PIN = 12
+# Все рабочие параметры редактируются здесь, а в аргументах остаётся только GPIO pin.
 DEFAULT_FREQUENCY = 50.0
 DEFAULT_MIN_PULSE_US = 500.0
 DEFAULT_MAX_PULSE_US = 2500.0
 DEFAULT_MIN_ANGLE = 0.0
 DEFAULT_MAX_ANGLE = 180.0
+DEFAULT_CENTER_ANGLE = 90.0
 DEFAULT_DELAY = 0.7
-DEFAULT_STEP = 15.0
-
-
-def parse_angles(raw_value: str) -> list[float]:
-    values = []
-    for item in raw_value.split(","):
-        item = item.strip()
-        if not item:
-            continue
-        values.append(float(item))
-
-    if not values:
-        raise argparse.ArgumentTypeError("Список углов пуст.")
-
-    return values
 
 
 def clamp(value: float, low: float, high: float) -> float:
+    """Ограничивает значение диапазоном [low, high]."""
     return max(low, min(value, high))
 
 
@@ -39,15 +26,14 @@ def angle_to_pulse_us(
     min_pulse_us: float,
     max_pulse_us: float,
 ) -> float:
-    if max_angle <= min_angle:
-        raise ValueError("max_angle должен быть больше min_angle.")
-
+    """Переводит угол сервомотора в длину импульса."""
     clipped = clamp(angle, min_angle, max_angle)
     ratio = (clipped - min_angle) / (max_angle - min_angle)
     return min_pulse_us + ratio * (max_pulse_us - min_pulse_us)
 
 
 def pulse_us_to_duty_cycle(pulse_us: float, frequency_hz: float) -> float:
+    """Переводит длину импульса в duty cycle PWM."""
     period_us = 1_000_000.0 / frequency_hz
     return pulse_us / period_us * 100.0
 
@@ -61,9 +47,11 @@ def move_servo(
     min_pulse_us: float,
     max_pulse_us: float,
     delay_s: float,
-) -> None:
+) -> float:
+    """Перемещает сервомотор в указанный угол и возвращает фактический угол."""
+    actual_angle = clamp(angle, min_angle, max_angle)
     pulse_us = angle_to_pulse_us(
-        angle=angle,
+        angle=actual_angle,
         min_angle=min_angle,
         max_angle=max_angle,
         min_pulse_us=min_pulse_us,
@@ -72,167 +60,117 @@ def move_servo(
     duty_cycle = pulse_us_to_duty_cycle(pulse_us, frequency_hz)
 
     print(
-        f"Angle={angle:.1f} deg | pulse={pulse_us:.0f} us | duty={duty_cycle:.2f}%"
+        f"Angle={actual_angle:.1f} deg | pulse={pulse_us:.0f} us | duty={duty_cycle:.2f}%"
     )
     pwm.ChangeDutyCycle(duty_cycle)
     time.sleep(delay_s)
+    pwm.ChangeDutyCycle(0.0)
+    return actual_angle
 
 
-def build_sequence(args: argparse.Namespace) -> list[float]:
-    if args.mode == "center":
-        return [args.center_angle]
-
-    if args.mode == "angles":
-        return args.angles
-
-    sweep_up = []
-    current = args.min_angle
-    while current < args.max_angle:
-        sweep_up.append(current)
-        current += args.step
-    sweep_up.append(args.max_angle)
-
-    sweep_down = list(reversed(sweep_up[:-1]))
-    return sweep_up + sweep_down
+def print_help() -> None:
+    """Печатает список доступных команд."""
+    print("Commands:")
+    print("  set <angle>     - поставить сервомотор на указанный угол")
+    print("  turn <delta>    - повернуть относительно текущего угла")
+    print("  center          - поставить на центральный угол")
+    print("  status          - показать текущий угол")
+    print("  help            - показать эту справку")
+    print("  quit            - выход")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Тест сервомотора на Raspberry Pi через PWM."
+        description="Интерактивный тест сервомотора на Raspberry Pi."
     )
     parser.add_argument(
         "--pin",
         type=int,
-        default=DEFAULT_PIN,
-        help="BCM номер GPIO-пина для сигнала сервомотора. Для вашего стенда по умолчанию GPIO 12.",
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["center", "angles", "sweep"],
-        default="sweep",
-        help="Режим тестирования: центр, список углов или прогон туда-обратно.",
-    )
-    parser.add_argument(
-        "--angles",
-        type=parse_angles,
-        default=[0.0, 90.0, 180.0],
-        help="Список углов через запятую для режима angles.",
-    )
-    parser.add_argument(
-        "--center-angle",
-        type=float,
-        default=90.0,
-        help="Угол для режима center.",
-    )
-    parser.add_argument(
-        "--frequency",
-        type=float,
-        default=DEFAULT_FREQUENCY,
-        help="Частота PWM в Гц. Для большинства сервоприводов 50 Гц.",
-    )
-    parser.add_argument(
-        "--min-pulse-us",
-        type=float,
-        default=DEFAULT_MIN_PULSE_US,
-        help="Импульс для минимального угла в микросекундах.",
-    )
-    parser.add_argument(
-        "--max-pulse-us",
-        type=float,
-        default=DEFAULT_MAX_PULSE_US,
-        help="Импульс для максимального угла в микросекундах.",
-    )
-    parser.add_argument(
-        "--min-angle",
-        type=float,
-        default=DEFAULT_MIN_ANGLE,
-        help="Минимальный угол сервомотора.",
-    )
-    parser.add_argument(
-        "--max-angle",
-        type=float,
-        default=DEFAULT_MAX_ANGLE,
-        help="Максимальный угол сервомотора.",
-    )
-    parser.add_argument(
-        "--step",
-        type=float,
-        default=DEFAULT_STEP,
-        help="Шаг в градусах для режима sweep.",
-    )
-    parser.add_argument(
-        "--delay",
-        type=float,
-        default=DEFAULT_DELAY,
-        help="Пауза после каждой команды в секундах.",
-    )
-    parser.add_argument(
-        "--repeat",
-        type=int,
-        default=1,
-        help="Сколько раз повторить последовательность. 0 означает бесконечно.",
-    )
-    parser.add_argument(
-        "--settle",
-        type=float,
-        default=0.5,
-        help="Пауза после запуска PWM перед первой командой.",
-    )
-    parser.add_argument(
-        "--keep-active",
-        action="store_true",
-        help="Не отключать PWM в конце, оставить удержание позиции.",
+        required=True,
+        help="BCM номер GPIO-пина для сигнала сервомотора.",
     )
     args = parser.parse_args()
 
-    if args.frequency <= 0:
-        raise ValueError("frequency должен быть больше 0.")
-    if args.max_angle <= args.min_angle:
+    if DEFAULT_FREQUENCY <= 0:
+        raise ValueError("DEFAULT_FREQUENCY должен быть больше 0.")
+    if DEFAULT_MAX_ANGLE <= DEFAULT_MIN_ANGLE:
         raise ValueError("max_angle должен быть больше min_angle.")
-    if args.max_pulse_us <= args.min_pulse_us:
+    if DEFAULT_MAX_PULSE_US <= DEFAULT_MIN_PULSE_US:
         raise ValueError("max_pulse_us должен быть больше min_pulse_us.")
-    if args.step <= 0:
-        raise ValueError("step должен быть больше 0.")
-    if args.delay < 0:
-        raise ValueError("delay не может быть отрицательным.")
-    if args.repeat < 0:
-        raise ValueError("repeat не может быть отрицательным.")
-
-    sequence = build_sequence(args)
+    if DEFAULT_DELAY < 0:
+        raise ValueError("DEFAULT_DELAY не может быть отрицательным.")
 
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(args.pin, GPIO.OUT)
 
-    pwm = GPIO.PWM(args.pin, args.frequency)
+    pwm = GPIO.PWM(args.pin, DEFAULT_FREQUENCY)
     pwm.start(0.0)
 
+    current_angle = clamp(DEFAULT_CENTER_ANGLE, DEFAULT_MIN_ANGLE, DEFAULT_MAX_ANGLE)
+
     print(f"GPIO pin: {args.pin} (BCM)")
-    print(f"Mode: {args.mode}")
-    print(f"Sequence: {', '.join(f'{angle:.1f}' for angle in sequence)}")
-    print("Press Ctrl+C to stop.\n")
+    print(f"Angle range: {DEFAULT_MIN_ANGLE:.1f}..{DEFAULT_MAX_ANGLE:.1f}")
+    print(f"Center angle: {current_angle:.1f}")
+    print_help()
 
     try:
-        time.sleep(args.settle)
+        while True:
+            raw = input("\nservo> ").strip()
+            if not raw:
+                continue
 
-        cycles_done = 0
-        while args.repeat == 0 or cycles_done < args.repeat:
-            for angle in sequence:
-                move_servo(
+            parts = raw.split()
+            command = parts[0].lower()
+
+            if command in ("quit", "exit", "q"):
+                break
+
+            if command == "help":
+                print_help()
+                continue
+
+            if command == "status":
+                print(f"Current angle: {current_angle:.1f}")
+                continue
+
+            if command == "center":
+                current_angle = move_servo(
                     pwm=pwm,
-                    angle=angle,
-                    frequency_hz=args.frequency,
-                    min_angle=args.min_angle,
-                    max_angle=args.max_angle,
-                    min_pulse_us=args.min_pulse_us,
-                    max_pulse_us=args.max_pulse_us,
-                    delay_s=args.delay,
+                    angle=DEFAULT_CENTER_ANGLE,
+                    frequency_hz=DEFAULT_FREQUENCY,
+                    min_angle=DEFAULT_MIN_ANGLE,
+                    max_angle=DEFAULT_MAX_ANGLE,
+                    min_pulse_us=DEFAULT_MIN_PULSE_US,
+                    max_pulse_us=DEFAULT_MAX_PULSE_US,
+                    delay_s=DEFAULT_DELAY,
                 )
-            cycles_done += 1
+                continue
 
-        if args.keep_active:
-            print("\nPWM remains active. Press Ctrl+C to release the servo.")
-            while True:
-                time.sleep(1.0)
+            if command in ("set", "turn"):
+                if len(parts) != 2:
+                    print("Нужно указать одно числовое значение.")
+                    continue
+
+                try:
+                    value = float(parts[1])
+                except ValueError:
+                    print("Значение должно быть числом.")
+                    continue
+
+                target_angle = value if command == "set" else current_angle + value
+                current_angle = move_servo(
+                    pwm=pwm,
+                    angle=target_angle,
+                    frequency_hz=DEFAULT_FREQUENCY,
+                    min_angle=DEFAULT_MIN_ANGLE,
+                    max_angle=DEFAULT_MAX_ANGLE,
+                    min_pulse_us=DEFAULT_MIN_PULSE_US,
+                    max_pulse_us=DEFAULT_MAX_PULSE_US,
+                    delay_s=DEFAULT_DELAY,
+                )
+                continue
+
+            print("Неизвестная команда. Используйте help.")
 
     except KeyboardInterrupt:
         print("\nStopping...")

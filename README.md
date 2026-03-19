@@ -22,9 +22,11 @@
   Экспорт моделей, включая NCNN.
 - [detection/README.md](detection/README.md)
   Локальный запуск детекции на ПК и Raspberry Pi.
-- [network/README.md](network/README.md)
+- [network/README.md](network/README.md)  
   Стрим с Raspberry Pi на ПК и распознавание на стороне ПК.
-- [servo_test/README.md](servo_test/README.md)
+- [waste/README.md](waste/README.md)  
+  Прототип умной мусорки: детекция на ПК и команды сервомоторам на Raspberry Pi.
+- [servo_test/README.md](servo_test/README.md)  
   Тест сервопривода на Raspberry Pi.
 
 ## Быстрый маршрут по проекту
