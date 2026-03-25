@@ -17,6 +17,10 @@ PORT = 5001
 CAMERA_SIZE = (640, 480)
 JPEG_QUALITY = 80
 WARMUP_SEC = 1.0
+CROP_TOP = 50
+CROP_BOTTOM = 80
+CROP_LEFT = 110
+CROP_RIGHT = 100
 
 # Параметры управления сервоприводами.
 SERVO_FREQUENCY = 50.0
@@ -25,13 +29,16 @@ MAX_PULSE_US = 2500.0
 MIN_ANGLE = 0.0
 MAX_ANGLE = 180.0
 MOVE_SETTLE_SEC = 0.7
-TILT_RETURN_ANGLE = 90.0
+TILT_RETURN_ANGLE = 95.0
+ROTATE_RETURN_ANGLE = 90.0
+DUMP_PAUSE_SEC = 0.5
 
-# GPIO 12: поворот распределителя по горизонтали.
-# GPIO 13: наклон площадки для сброса мусора.
+# GPIO 12: наклон площадки для сброса мусора
+# GPIO 13: поворот распределителя по горизонтали
 SERVO_PINS = [12, 13]
-ROTATE_SERVO_PIN = 12
-TILT_SERVO_PIN = 13
+TILT_SERVO_PIN = 12
+ROTATE_SERVO_PIN = 13
+
 
 # Здесь задаются команды для 4 секций мусорки.
 # Формат:
@@ -42,10 +49,10 @@ TILT_SERVO_PIN = 13
 #
 # Эти углы сейчас тестовые. Их можно подправить на испытаниях под механику.
 COMMAND_ACTIONS = {
-    "section_1": {"rotate": 20, "tilt": 140},
-    "section_2": {"rotate": 65, "tilt": 140},
-    "section_3": {"rotate": 115, "tilt": 140},
-    "section_4": {"rotate": 160, "tilt": 140},
+    "section_1": {"rotate": 160, "tilt": 70},
+    "section_2": {"rotate": 20, "tilt": 70},
+    "section_3": {"rotate": 160, "tilt": 120},
+    "section_4": {"rotate": 20, "tilt": 120},
 }
 
 
@@ -61,6 +68,25 @@ def angle_to_duty_cycle(angle: float) -> float:
     pulse_us = MIN_PULSE_US + ratio * (MAX_PULSE_US - MIN_PULSE_US)
     period_us = 1_000_000.0 / SERVO_FREQUENCY
     return pulse_us / period_us * 100.0
+
+
+def crop_frame(frame):
+    """Обрезает кадр перед отправкой по сети."""
+    height, width = frame.shape[:2]
+    top = clamp(CROP_TOP, 0, height)
+    bottom = clamp(CROP_BOTTOM, 0, height - top)
+    left = clamp(CROP_LEFT, 0, width)
+    right = clamp(CROP_RIGHT, 0, width - left)
+
+    y_start = int(top)
+    y_end = int(height - bottom)
+    x_start = int(left)
+    x_end = int(width - right)
+
+    if y_start >= y_end or x_start >= x_end:
+        return frame
+
+    return frame[y_start:y_end, x_start:x_end]
 
 
 def create_pwm_map() -> dict[int, GPIO.PWM]:
@@ -99,8 +125,14 @@ def execute_command(command: str, pwm_map: dict[int, GPIO.PWM]) -> None:
     # 2. Наклонить площадку, чтобы мусор упал в выбранный отсек.
     move_servo(pwm_map, TILT_SERVO_PIN, action["tilt"])
 
+    # Даём мусору время сойти после наклона.
+    time.sleep(DUMP_PAUSE_SEC)
+
     # 3. Вернуть площадку в нейтральное положение, чтобы принять следующий объект.
     move_servo(pwm_map, TILT_SERVO_PIN, TILT_RETURN_ANGLE)
+
+    # 4. Вернуть распределитель в нейтральное положение.
+    move_servo(pwm_map, ROTATE_SERVO_PIN, ROTATE_RETURN_ANGLE)
 
 
 def handle_pending_commands(
@@ -159,6 +191,7 @@ def main() -> None:
                     command_buffer = handle_pending_commands(conn, command_buffer, pwm_map)
 
                     frame = picam2.capture_array()
+                    frame = crop_frame(frame)
                     ok, encoded = cv2.imencode(".jpg", frame, encode_params)
                     if not ok:
                         continue

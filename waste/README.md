@@ -8,16 +8,19 @@
 
 ## Файлы
 
-- [waste_server_rpi.py](waste_server_rpi.py)  
+- [waste_server_rpi.py](waste_server_rpi.py)
   Камера + TCP-сервер + выполнение команд сервомоторов на Raspberry Pi.
-- [waste_client_pc.py](waste_client_pc.py)  
+- [waste_client_pc.py](waste_client_pc.py)
   Приём потока, YOLO-детекция и отправка команд с ПК.
+- [waste_client_pc_test.py](waste_client_pc_test.py)
+  Приём потока, YOLO-детекция и ручная отправка команд из консоли.
 
 ## Как это работает
 
 1. `waste_server_rpi.py` открывает камеру и слушает TCP-порт.
 2. `waste_client_pc.py` подключается к Raspberry Pi.
 3. Raspberry Pi отправляет JPEG-кадры на ПК.
+   Перед отправкой кадр можно обрезать параметрами `CROP_TOP`, `CROP_BOTTOM`, `CROP_LEFT`, `CROP_RIGHT`.
 4. ПК находит класс объекта.
 5. ПК не реагирует на один кадр, а ждёт несколько одинаковых решений подряд.
 6. Если класс стабилен, на Pi уходит текстовая команда.
@@ -39,7 +42,14 @@
 - `HOST`
 - `PORT`
 - `CAMERA_SIZE`
+- `CROP_TOP`
+- `CROP_BOTTOM`
+- `CROP_LEFT`
+- `CROP_RIGHT`
 - `JPEG_QUALITY`
+- `DUMP_PAUSE_SEC`
+- `ROTATE_RETURN_ANGLE`
+- `TILT_RETURN_ANGLE`
 - `ROTATE_SERVO_PIN`
 - `TILT_SERVO_PIN`
 - `COMMAND_ACTIONS`
@@ -49,7 +59,7 @@
 Raspberry Pi:
 
 ```bash
-python waste/waste_server_rpi.py
+python waste_server_rpi.py
 ```
 
 ПК:
@@ -57,6 +67,23 @@ python waste/waste_server_rpi.py
 ```bash
 python waste/waste_client_pc.py
 ```
+
+ПК, ручной тестовый клиент:
+
+```bash
+python waste/waste_client_pc_test.py --model example.pt
+```
+
+ПК, ручной тестовый клиент с параметрами:
+
+```bash
+python waste/waste_client_pc_test.py --host 192.168.1.10 --port 5001 --model example.pt --conf 0.60
+```
+
+В `waste_client_pc_test.py` команды можно отправлять двумя способами:
+
+- в консоли: `section_1` ... `section_4` или `1` ... `4`;
+- в окне `OpenCV`: клавишами `1`, `2`, `3`, `4`.
 
 ## Логика принятия решения
 
@@ -85,16 +112,18 @@ CLASS_TO_COMMAND = {
 
 ```python
 COMMAND_ACTIONS = {
-    "section_1": {"rotate": 20, "tilt": 140},
-    "section_2": {"rotate": 65, "tilt": 140},
-    "section_3": {"rotate": 115, "tilt": 140},
-    "section_4": {"rotate": 160, "tilt": 140},
+    "section_1": {"rotate": 160, "tilt": 70},
+    "section_2": {"rotate": 20, "tilt": 70},
+    "section_3": {"rotate": 160, "tilt": 120},
+    "section_4": {"rotate": 20, "tilt": 120},
 }
 ```
 
 Смысл сервомоторов:
 
-- `GPIO 12` поворачивает распределитель по горизонтали к нужной секции;
-- `GPIO 13` наклоняет площадку для сброса.
+- `GPIO 12` наклоняет площадку для сброса;
+- `GPIO 13` поворачивает распределитель по горизонтали к нужной секции.
+
+После выполнения команды оба сервомотора возвращаются в нейтральное положение `90` градусов.
 
 То есть сопоставление класса и конкретного движения можно менять без изменения самой схемы обмена.
