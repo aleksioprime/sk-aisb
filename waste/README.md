@@ -14,6 +14,8 @@
   Приём потока, YOLO-детекция и отправка команд с ПК.
 - [waste_client_pc_test.py](waste_client_pc_test.py)
   Приём потока, YOLO-детекция и ручная отправка команд из консоли.
+- [waste_capture_pc.py](waste_capture_pc.py)
+  Приём потока и сохранение текущего кадра в папку по нажатию клавиши.
 
 ## Как это работает
 
@@ -80,10 +82,28 @@ python waste/waste_client_pc_test.py --model example.pt
 python waste/waste_client_pc_test.py --host 192.168.1.10 --port 5001 --model example.pt --conf 0.60
 ```
 
+ПК, утилита сохранения кадров:
+
+```bash
+python waste/waste_capture_pc.py --host 192.168.1.10 --port 5001 --output-dir waste/captures
+```
+
+Сменить клавишу сохранения:
+
+```bash
+python waste/waste_capture_pc.py --host 192.168.1.10 --output-dir waste/captures --save-key space
+```
+
 В `waste_client_pc_test.py` команды можно отправлять двумя способами:
 
 - в консоли: `section_1` ... `section_4` или `1` ... `4`;
 - в окне `OpenCV`: клавишами `1`, `2`, `3`, `4`.
+
+В `waste_capture_pc.py`:
+
+- `--output-dir` обязателен;
+- `--save-key` по умолчанию равен `s`;
+- выход из программы: `q` или `Esc`.
 
 ## Логика принятия решения
 
