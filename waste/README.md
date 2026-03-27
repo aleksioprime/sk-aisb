@@ -70,6 +70,12 @@ python waste_server_rpi.py
 python waste/waste_client_pc.py
 ```
 
+ПК, без вывода окна OpenCV:
+
+```bash
+python waste/waste_client_pc.py --host 192.168.1.10 --model detection/example.pt --no-display
+```
+
 ПК, ручной тестовый клиент:
 
 ```bash
@@ -80,6 +86,12 @@ python waste/waste_client_pc_test.py --model example.pt
 
 ```bash
 python waste/waste_client_pc_test.py --host 192.168.0.103 --port 5001 --model AISB_trash_3.0v.pt --conf 0.60
+```
+
+ПК, ручной тестовый клиент без окна:
+
+```bash
+python waste/waste_client_pc_test.py --host 192.168.0.103 --port 5001 --model AISB_trash_3.0v.pt --conf 0.60 --no-display
 ```
 
 ПК, утилита сохранения кадров:
@@ -98,6 +110,12 @@ python waste/waste_capture_pc.py --host 192.168.1.10 --output-dir waste/captures
 
 - в консоли: `section_1` ... `section_4` или `1` ... `4`;
 - в окне `OpenCV`: клавишами `1`, `2`, `3`, `4`.
+
+В `waste_client_pc.py` и `waste_client_pc_test.py`:
+
+- `--no-display` отключает окно `OpenCV`;
+- в этом режиме результаты распознавания выводятся в консоль;
+- в `waste_client_pc_test.py` при `--no-display` ручные команды остаются доступны только через консоль.
 
 В `waste_capture_pc.py`:
 

@@ -48,10 +48,15 @@ def recv_exact(sock: socket.socket, size: int) -> bytes:
     return b"".join(chunks)
 
 
-def console_reader(command_queue: queue.Queue[str], stop_event: threading.Event) -> None:
+def console_reader(
+    command_queue: queue.Queue[str],
+    stop_event: threading.Event,
+    display_enabled: bool,
+) -> None:
     """Read commands from stdin in a background thread."""
     print("Manual mode: type section_1..section_4 or 1..4. Type quit to stop.")
-    print("You can also press keys 1..4 in the OpenCV window to send commands.")
+    if display_enabled:
+        print("You can also press keys 1..4 in the OpenCV window to send commands.")
 
     while not stop_event.is_set():
         try:
@@ -76,6 +81,22 @@ def console_reader(command_queue: queue.Queue[str], stop_event: threading.Event)
         command_queue.put(command)
 
 
+def describe_detections(result, names: dict[int, str]) -> str:
+    """Return a short text description of detections for console mode."""
+    boxes = result.boxes
+    if boxes is None or len(boxes) == 0:
+        return "no objects"
+
+    detections = []
+    for class_tensor, conf_tensor in zip(boxes.cls, boxes.conf):
+        class_id = int(class_tensor.item())
+        class_name = names.get(class_id, str(class_id))
+        confidence = float(conf_tensor.item())
+        detections.append(f"{class_name}:{confidence:.2f}")
+
+    return ", ".join(detections)
+
+
 def main() -> None:
     """Run video receiving, YOLO detection, and manual command sending."""
     parser = argparse.ArgumentParser()
@@ -92,6 +113,11 @@ def main() -> None:
         default=DEFAULT_CONF,
         help="Confidence threshold.",
     )
+    parser.add_argument(
+        "--no-display",
+        action="store_true",
+        help="Disable the OpenCV window and print recognition results to the console.",
+    )
     args = parser.parse_args()
 
     model = YOLO(args.model)
@@ -103,10 +129,17 @@ def main() -> None:
     stop_event = threading.Event()
     input_thread = threading.Thread(
         target=console_reader,
-        args=(command_queue, stop_event),
+        args=(command_queue, stop_event, not args.no_display),
         daemon=True,
     )
     input_thread.start()
+    last_logged_summary = ""
+
+    print(f"Connected to {args.host}:{args.port}")
+    if args.no_display:
+        print("Display disabled. Recognition results will be printed to the console.")
+    else:
+        print("Press q or Esc in the OpenCV window to exit.")
 
     try:
         while not stop_event.is_set():
@@ -123,7 +156,13 @@ def main() -> None:
 
             results = model(frame, conf=args.conf, verbose=False)
             result = results[0]
-            annotated = result.plot()
+            detection_summary = describe_detections(result, result.names)
+
+            if args.no_display:
+                summary_line = f"Detections: {detection_summary}"
+                if summary_line != last_logged_summary:
+                    print(summary_line)
+                    last_logged_summary = summary_line
 
             while True:
                 try:
@@ -134,15 +173,17 @@ def main() -> None:
                 sock.sendall((command + "\n").encode("utf-8"))
                 print(f"Sent manual command: {command}")
 
-            cv2.imshow("Smart bin detect test", annotated)
-            key = cv2.waitKey(1) & 0xFF
-            if key in (ord("1"), ord("2"), ord("3"), ord("4")):
-                command = COMMAND_ALIASES[chr(key)]
-                sock.sendall((command + "\n").encode("utf-8"))
-                print(f"Sent manual command: {command}")
-            if key in (27, ord("q")):
-                stop_event.set()
-                break
+            if not args.no_display:
+                annotated = result.plot()
+                cv2.imshow("Smart bin detect test", annotated)
+                key = cv2.waitKey(1) & 0xFF
+                if key in (ord("1"), ord("2"), ord("3"), ord("4")):
+                    command = COMMAND_ALIASES[chr(key)]
+                    sock.sendall((command + "\n").encode("utf-8"))
+                    print(f"Sent manual command: {command}")
+                if key in (27, ord("q")):
+                    stop_event.set()
+                    break
 
     except KeyboardInterrupt:
         print("\nStopping...")
