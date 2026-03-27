@@ -1,6 +1,8 @@
 import argparse
+import queue
 import socket
 import struct
+import threading
 import time
 from collections import deque
 from pathlib import Path
@@ -24,10 +26,10 @@ REQUIRED_STREAK = 3
 # Здесь задаётся, какой класс какую команду отправляет на Raspberry Pi.
 # Подразумевается 4 класса и 4 секции мусорки.
 CLASS_TO_COMMAND = {
-    "class_1": "section_1",
-    "class_2": "section_2",
-    "class_3": "section_3",
-    "class_4": "section_4",
+    "plastic": "section_1",
+    "else": "section_2",
+    "papper": "section_3",
+    "organic": "section_4",
 }
 
 
@@ -44,6 +46,39 @@ def recv_exact(sock: socket.socket, size: int) -> bytes:
         remaining -= len(chunk)
 
     return b"".join(chunks)
+
+
+def frame_reader(
+    sock: socket.socket,
+    frame_queue: queue.Queue[np.ndarray],
+    stop_event: threading.Event,
+) -> None:
+    """Читает поток кадров и сохраняет для обработки только самый свежий кадр."""
+    try:
+        while not stop_event.is_set():
+            header = recv_exact(sock, 4)
+            frame_size = struct.unpack("!I", header)[0]
+            payload = recv_exact(sock, frame_size)
+
+            frame = cv2.imdecode(
+                np.frombuffer(payload, dtype=np.uint8),
+                cv2.IMREAD_COLOR,
+            )
+            if frame is None:
+                continue
+
+            while True:
+                try:
+                    frame_queue.put_nowait(frame)
+                    break
+                except queue.Full:
+                    try:
+                        frame_queue.get_nowait()
+                    except queue.Empty:
+                        break
+
+    except (ConnectionError, OSError):
+        stop_event.set()
 
 
 def choose_command(result, names: dict[int, str]) -> str | None:
@@ -120,6 +155,15 @@ def main() -> None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.connect((args.host, args.port))
 
+    frame_queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=1)
+    stop_event = threading.Event()
+    reader_thread = threading.Thread(
+        target=frame_reader,
+        args=(sock, frame_queue, stop_event),
+        daemon=True,
+    )
+    reader_thread.start()
+
     last_command = None
     last_command_time = 0.0
     decision_history: deque[str | None] = deque(maxlen=DECISION_WINDOW)
@@ -132,16 +176,10 @@ def main() -> None:
         print("Press q or Esc to exit.")
 
     try:
-        while True:
-            header = recv_exact(sock, 4)
-            frame_size = struct.unpack("!I", header)[0]
-            payload = recv_exact(sock, frame_size)
-
-            frame = cv2.imdecode(
-                np.frombuffer(payload, dtype=np.uint8),
-                cv2.IMREAD_COLOR,
-            )
-            if frame is None:
+        while not stop_event.is_set():
+            try:
+                frame = frame_queue.get(timeout=0.1)
+            except queue.Empty:
                 continue
 
             results = model(frame, conf=args.conf, verbose=False)
@@ -186,6 +224,7 @@ def main() -> None:
         print("\nStopping...")
 
     finally:
+        stop_event.set()
         sock.close()
         cv2.destroyAllWindows()
 
