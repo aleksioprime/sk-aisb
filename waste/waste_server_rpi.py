@@ -18,9 +18,9 @@ CAMERA_SIZE = (640, 480)
 JPEG_QUALITY = 80
 WARMUP_SEC = 1.0
 CROP_TOP = 40
-CROP_BOTTOM = 70
+CROP_BOTTOM = 85
 CROP_LEFT = 110
-CROP_RIGHT = 90
+CROP_RIGHT = 76
 
 # Параметры управления сервоприводами.
 SERVO_FREQUENCY = 50.0
@@ -51,8 +51,8 @@ ROTATE_SERVO_PIN = 13
 COMMAND_ACTIONS = {
     "section_1": {"rotate": 160, "tilt": 70},
     "section_2": {"rotate": 20, "tilt": 70},
-    "section_3": {"rotate": 160, "tilt": 120},
-    "section_4": {"rotate": 20, "tilt": 120},
+    "section_3": {"rotate": 160, "tilt": 140},
+    "section_4": {"rotate": 20, "tilt": 140},
 }
 
 
