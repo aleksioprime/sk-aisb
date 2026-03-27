@@ -19,7 +19,7 @@ JPEG_QUALITY = 80
 WARMUP_SEC = 1.0
 CROP_TOP = 40
 CROP_BOTTOM = 70
-CROP_LEFT = 110
+CROP_LEFT = 103
 CROP_RIGHT = 90
 
 # Параметры управления сервоприводами.

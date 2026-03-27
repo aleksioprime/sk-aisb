@@ -79,7 +79,7 @@ python waste/waste_client_pc_test.py --model example.pt
 ПК, ручной тестовый клиент с параметрами:
 
 ```bash
-python waste/waste_client_pc_test.py --host 192.168.0.103 --port 5001 --model AISB_trash_3.0v.pt --conf 0.60
+python waste/waste_client_pc_test.py --host 192.168.0.103 --port 5001 --model waste/AISB_trash_3.0v.pt --conf 0.60
 ```
 
 ПК, утилита сохранения кадров:
