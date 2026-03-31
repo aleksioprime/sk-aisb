@@ -18,6 +18,13 @@ DEFAULT_PORT = 5001
 DEFAULT_MODEL_PATH = str(Path.cwd() / "example.pt")
 DEFAULT_CONF = 0.60
 
+# Class name for empty platform (no action needed).
+EMPTY_CLASS = "empty"
+
+# Contour area range for unknown object detection.
+CONTOUR_MIN_AREA = 500
+CONTOUR_MAX_AREA = 50000
+
 # Manual commands accepted from the console.
 VALID_COMMANDS = {
     "section_1",
@@ -130,6 +137,32 @@ def describe_detections(result, names: dict[int, str]) -> str:
     return ", ".join(detections)
 
 
+def has_meaningful_detections(result, names: dict[int, str]) -> bool:
+    """Return True if YOLO found objects other than the empty platform."""
+    boxes = result.boxes
+    if boxes is None or len(boxes) == 0:
+        return False
+    for cls_tensor in boxes.cls:
+        class_name = names.get(int(cls_tensor.item()), "")
+        if class_name != EMPTY_CLASS:
+            return True
+    return False
+
+
+def detect_unknown_contours(frame: np.ndarray) -> list:
+    """Return contours of unknown objects on the platform."""
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (21, 21), 0)
+    edges = cv2.Canny(blurred, 30, 100)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    dilated = cv2.dilate(edges, kernel, iterations=2)
+    contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    return [
+        c for c in contours
+        if CONTOUR_MIN_AREA <= cv2.contourArea(c) <= CONTOUR_MAX_AREA
+    ]
+
+
 def main() -> None:
     """Run video receiving, YOLO detection, and manual command sending."""
     parser = argparse.ArgumentParser()
@@ -192,8 +225,16 @@ def main() -> None:
             result = results[0]
             detection_summary = describe_detections(result, result.names)
 
+            # Determine if an unknown object is present (contour-based).
+            unknown_detected = False
+            unknown_contours = []
+            if not has_meaningful_detections(result, result.names):
+                unknown_contours = detect_unknown_contours(frame)
+                unknown_detected = len(unknown_contours) > 0
+
             if args.no_display:
-                summary_line = f"Detections: {detection_summary}"
+                extra = " | UNKNOWN OBJECT (contour)" if unknown_detected else ""
+                summary_line = f"Detections: {detection_summary}{extra}"
                 if summary_line != last_logged_summary:
                     print(summary_line)
                     last_logged_summary = summary_line
@@ -209,6 +250,17 @@ def main() -> None:
 
             if not args.no_display:
                 annotated = result.plot()
+                if unknown_detected:
+                    cv2.drawContours(annotated, unknown_contours, -1, (0, 0, 255), 2)
+                    cv2.putText(
+                        annotated,
+                        "UNKNOWN OBJECT",
+                        (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1.0,
+                        (0, 0, 255),
+                        2,
+                    )
                 cv2.imshow("Smart bin detect test", annotated)
                 key = cv2.waitKey(1) & 0xFF
                 if key in (ord("1"), ord("2"), ord("3"), ord("4")):

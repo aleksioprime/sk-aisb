@@ -110,8 +110,19 @@ def move_servo(pwm_map: dict[int, GPIO.PWM], pin: int, angle: float) -> None:
     pwm.ChangeDutyCycle(0.0)
 
 
+def center_servos(pwm_map: dict[int, GPIO.PWM]) -> None:
+    """Приводит все сервоприводы в центральное (нейтральное) положение."""
+    print("Execute command: center")
+    move_servo(pwm_map, TILT_SERVO_PIN, TILT_RETURN_ANGLE)
+    move_servo(pwm_map, ROTATE_SERVO_PIN, ROTATE_RETURN_ANGLE)
+
+
 def execute_command(command: str, pwm_map: dict[int, GPIO.PWM]) -> None:
     """Выполняет команду, переводя мусор в одну из 4 секций."""
+    if command == "center":
+        center_servos(pwm_map)
+        return
+
     action = COMMAND_ACTIONS.get(command)
     if not action:
         print(f"Unknown command: {command}")
