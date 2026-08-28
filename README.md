@@ -26,6 +26,8 @@
   Стрим с Raspberry Pi на ПК и распознавание на стороне ПК.
 - [waste/README.md](waste/README.md)  
   Прототип умной мусорки: детекция на ПК и команды сервомоторам на Raspberry Pi.
+- [umka/README.md](umka/README.md)
+  Автономная UMKA для Raspberry Pi 4/5: USB-камера, YOLO, веб-интерфейс и тестовый режим без моторов.
 - [servo_test/README.md](servo_test/README.md)  
   Тест сервопривода на Raspberry Pi.
 

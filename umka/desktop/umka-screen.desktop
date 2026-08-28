@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Открыть экран UMKA
+Comment=Открыть интерфейс во весь экран с сенсорным выходом
+Exec=/usr/bin/python3 /home/umka/app/desktop/kiosk_launcher.py
+Icon=web-browser
+Terminal=false
+StartupNotify=true
+Categories=Utility;

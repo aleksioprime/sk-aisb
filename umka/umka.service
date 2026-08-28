@@ -1,0 +1,18 @@
+[Unit]
+Description=UMKA smart waste sorter
+After=network.target
+
+[Service]
+Type=simple
+User=umka
+WorkingDirectory=/home/umka/app
+ExecStart=/home/umka/app/.venv/bin/python app.py --hardware console
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=journal
+StandardError=journal
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

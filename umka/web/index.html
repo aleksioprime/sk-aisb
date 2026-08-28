@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>УМКА — умная мусорка</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- ЭКРАН ОЖИДАНИЯ -->
+    <div id="idle-screen" class="screen active">
+      <div class="bg-animation"></div>
+      <div class="content">
+        <!-- Мордочка: логотип с глазами + лапки -->
+        <div class="face-container" id="face-container">
+          <div class="logo-container">
+            <div class="eye-group eye-left">
+              <div class="eye-slot"></div>
+            </div>
+            <img src="/logo.png" alt="УМКА" class="logo-img">
+            <div class="eye-group eye-right">
+              <div class="eye-slot"></div>
+            </div>
+          </div>
+          <!-- Лапки (появляются при эмоциях) -->
+          <div class="paw paw-left" id="paw-left">
+  <span class="finger finger-up"></span>
+  <span class="finger finger-left"></span>
+  <span class="finger finger-right"></span>
+</div>
+<div class="paw paw-right" id="paw-right">
+  <span class="finger finger-up"></span>
+  <span class="finger finger-left"></span>
+  <span class="finger finger-right"></span>
+</div>
+        </div>
+
+        <!-- Горизонтальный ряд: статус+статистика и QR -->
+        <div class="bottom-row">
+          <div class="center-block">
+            <div class="status">
+              <span class="pulse-dot"></span>
+              <span id="system-status">Запуск системы...</span>
+            </div>
+            <p class="diagnostics" id="diagnostics">Камера: проверка · Модель: проверка</p>
+            <div class="stats-wrapper">
+              <p class="sorted-label">уже отсортировано</p>
+              <div class="stats">
+                <div class="stat-item">
+                  <span class="stat-value" id="stat-count">1729</span>
+                  <span class="stat-label">шт</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-value" id="stat-weight">17</span>
+                  <span class="stat-label">≈ кг</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="qr-container">
+            <div id="qrcode"></div>
+            <p class="qr-hint">Сайт Умки</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ЭКРАН РАСПОЗНАВАНИЯ (страницы) -->
+    <div id="waste-screen" class="screen">
+      <!-- Бумага -->
+      <div class="waste-page page-paper">
+        <div class="waste-bg"></div>
+        <div class="content">
+          <div class="waste-icon">📄</div>
+          <div class="waste-info">
+            <h1 class="waste-title">Обнаружен мусор</h1>
+            <p class="waste-type">Бумага</p>
+            <p class="waste-question">Подтвердите тип отхода</p>
+            <p class="action-status">Секция: <span data-section>—</span> · <span data-action>ожидание</span></p>
+          </div>
+          <div class="buttons">
+            <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
+            <button class="btn btn-no" data-answer="no"><span class="btn-icon">✕</span> Нет</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Пластик/Алюминий -->
+      <div class="waste-page page-plastic">
+        <div class="waste-bg"></div>
+        <div class="content">
+          <div class="waste-icon">🥤</div>
+          <div class="waste-info">
+            <h1 class="waste-title">Обнаружен мусор</h1>
+            <p class="waste-type">Пластик/Алюминий</p>
+            <p class="waste-question">Подтвердите тип отхода</p>
+            <p class="action-status">Секция: <span data-section>—</span> · <span data-action>ожидание</span></p>
+          </div>
+          <div class="buttons">
+            <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
+            <button class="btn btn-no" data-answer="no"><span class="btn-icon">✕</span> Нет</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Органика -->
+      <div class="waste-page page-organic">
+        <div class="waste-bg"></div>
+        <div class="content">
+          <div class="waste-icon">🍎</div>
+          <div class="waste-info">
+            <h1 class="waste-title">Обнаружен мусор</h1>
+            <p class="waste-type">Органика</p>
+            <p class="waste-question">Подтвердите тип отхода</p>
+            <p class="action-status">Секция: <span data-section>—</span> · <span data-action>ожидание</span></p>
+          </div>
+          <div class="buttons">
+            <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
+            <button class="btn btn-no" data-answer="no"><span class="btn-icon">✕</span> Нет</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Несортируемые -->
+      <div class="waste-page page-non-recyclable">
+        <div class="waste-bg"></div>
+        <div class="content">
+          <div class="waste-icon">🗑️</div>
+          <div class="waste-info">
+            <h1 class="waste-title">Обнаружен мусор</h1>
+            <p class="waste-type">Несортируемые отходы</p>
+            <p class="waste-question">Подтвердите тип отхода</p>
+            <p class="action-status">Секция: <span data-section>—</span> · <span data-action>ожидание</span></p>
+          </div>
+          <div class="buttons">
+            <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
+            <button class="btn btn-no" data-answer="no"><span class="btn-icon">✕</span> Нет</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Всплывающий ответ -->
+    <div id="feedback-overlay" class="overlay">
+      <div class="feedback-icon" id="feedback-icon">✅</div>
+    </div>
+
+    <!-- Диалог открывается скрытым жестом: пять касаний логотипа. -->
+    <div id="exit-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="exit-title">
+      <div class="exit-dialog">
+        <h2 id="exit-title">Закрыть экран UMKA?</h2>
+        <p id="exit-message">Программа сортировки продолжит работать в фоне.</p>
+        <div class="exit-actions">
+          <button class="btn btn-no" id="exit-cancel" type="button">Отмена</button>
+          <button class="btn btn-yes" id="exit-confirm" type="button">Закрыть экран</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/qrcode.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
