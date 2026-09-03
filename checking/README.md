@@ -1,31 +1,20 @@
 # Checking
 
-Папка для быстрых проверок камер и простых диагностических скриптов.
+Общая папка для быстрых проверок оборудования.
 
-## Файлы
+## Разделы
 
-- [camera_rpi.py](camera_rpi.py)  
-  Проверка захвата кадров с `Picamera2`, выводит размер изображения и число каналов.
-- [camera_rpi_yolo.py](camera_rpi_yolo.py)  
-  Быстрый тест YOLO прямо на Raspberry Pi.
-- [camera_pc.py](camera_pc.py)  
-  Сейчас пустой файл-заготовка для проверки камеры ПК.
-
-## Когда использовать
-
-- если нужно убедиться, что камера вообще выдаёт кадры;
-- если нужно быстро проверить цветовые каналы и размер изображения;
-- если нужно отделить проблему камеры от проблемы модели.
+- [camera](camera/) — проверка камер на ПК и Raspberry Pi, в том числе с YOLO;
+- [servo](servo/) — отдельные проверки сервоприводов через GPIO и PCA9685.
 
 ## Примеры
 
 ```bash
-python checking/camera_rpi.py
-python checking/camera_rpi_yolo.py
+python3 checking/camera/camera_rpi.py
+python3 checking/camera/camera_rpi_yolo.py
+python3 checking/servo/servo_rpi_gpio.py --pin 12
+python3 checking/servo/servo_rpi_driver.py
 ```
 
-## См. также
-
-- [Главный README](../README.md)
-- [Collect](../collect/README.md)
-- [Detection](../detection/README.md)
+Подробности подключения и команды теста сервоприводов описаны в
+[servo/README.md](servo/README.md).

@@ -15,7 +15,7 @@
 - [collect/README.md](collect/README.md)
   Сбор датасета с ПК и Raspberry Pi.
 - [checking/README.md](checking/README.md)
-  Быстрые проверки камер и тестовые скрипты.
+  Быстрые проверки камер и сервоприводов через PCA9685.
 - [training/README.md](training/README.md)
   Ноутбуки, зависимости и данные для обучения.
 - [prepare/README.md](prepare/README.md)
@@ -28,8 +28,6 @@
   Прототип умной мусорки: детекция на ПК и команды сервомоторам на Raspberry Pi.
 - [umka/README.md](umka/README.md)
   Автономная UMKA для Raspberry Pi 4/5: USB-камера, YOLO, веб-интерфейс и тестовый режим без моторов.
-- [servo_test/README.md](servo_test/README.md)  
-  Тест сервопривода на Raspberry Pi.
 
 ## Быстрый маршрут по проекту
 
