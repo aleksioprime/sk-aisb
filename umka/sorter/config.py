@@ -44,6 +44,9 @@ class AppConfig:
     web_port: int = 3000
     hardware_driver: str = "console"
     simulate_delay: float = 1.0
+    pca9685_address: int = 0x40
+    tilt_servo_channel: int = 0
+    rotate_servo_channel: int = 1
     # Имена классов модели сначала нормализуются, затем фильтруются и только
     # после этого сопоставляются физической секции и типу для интерфейса.
     class_aliases: dict[str, str] = field(default_factory=lambda: {"papper": "paper"})
@@ -75,8 +78,15 @@ class AppConfig:
             raise FileNotFoundError(f"Каталог интерфейса не найден: {self.static_dir}")
         if self.stable_frames < 1 or self.clear_frames < 1:
             raise ValueError("stable_frames и clear_frames должны быть положительными")
-        if self.hardware_driver not in {"console", "gpiozero"}:
+        if self.hardware_driver not in {"console", "gpiozero", "pca9685"}:
             raise ValueError(f"Неизвестный драйвер: {self.hardware_driver}")
+        if not 0x03 <= self.pca9685_address <= 0x77:
+            raise ValueError("Адрес PCA9685 должен находиться в диапазоне 0x03–0x77")
+        channels = (self.tilt_servo_channel, self.rotate_servo_channel)
+        if any(channel not in range(16) for channel in channels):
+            raise ValueError("Каналы PCA9685 должны находиться в диапазоне 0–15")
+        if self.tilt_servo_channel == self.rotate_servo_channel:
+            raise ValueError("Для наклона и поворота нужны разные каналы PCA9685")
 
     def normalize_class(self, name: str) -> str:
         """Привести имя класса YOLO к внутреннему каноническому имени."""

@@ -78,7 +78,13 @@ class UmkaApplication:
             # последующей инициализации модели, GPIO или камеры.
             self.detector = YoloDetector(self.config)
             self.state.update_component("model", ok=True, message="YOLO загружена")
-            self.hardware = create_hardware(self.config.hardware_driver, self.config.simulate_delay)
+            self.hardware = create_hardware(
+                self.config.hardware_driver,
+                self.config.simulate_delay,
+                self.config.pca9685_address,
+                self.config.tilt_servo_channel,
+                self.config.rotate_servo_channel,
+            )
             self.hardware.center()
             self.camera = UsbCamera(
                 self.config.camera_index,

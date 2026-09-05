@@ -20,7 +20,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", type=Path, help="Путь к YOLO .pt")
     parser.add_argument("--host", default="0.0.0.0", help="Адрес веб-сервера")
     parser.add_argument("--port", type=int, default=3000, help="Порт веб-сервера")
-    parser.add_argument("--hardware", choices=("console", "gpiozero"), default="console")
+    parser.add_argument(
+        "--hardware",
+        choices=("console", "pca9685", "gpiozero"),
+        default="console",
+        help="Драйвер механизма: имитация, PCA9685 по I2C или прямой GPIO",
+    )
+    parser.add_argument(
+        "--pca9685-address",
+        type=lambda value: int(value, 0),
+        default=0x40,
+        help="I2C-адрес PCA9685 (по умолчанию 0x40)",
+    )
+    parser.add_argument("--tilt-channel", type=int, default=0, help="Канал PCA9685 для наклона")
+    parser.add_argument("--rotate-channel", type=int, default=1, help="Канал PCA9685 для поворота")
     parser.add_argument("--confidence", type=float, default=0.60)
     parser.add_argument("--stable-frames", type=int, default=5)
     parser.add_argument("--clear-frames", type=int, default=10)
@@ -42,6 +55,9 @@ def main() -> None:
         web_host=args.host,
         web_port=args.port,
         hardware_driver=args.hardware,
+        pca9685_address=args.pca9685_address,
+        tilt_servo_channel=args.tilt_channel,
+        rotate_servo_channel=args.rotate_channel,
         confidence=args.confidence,
         stable_frames=args.stable_frames,
         clear_frames=args.clear_frames,

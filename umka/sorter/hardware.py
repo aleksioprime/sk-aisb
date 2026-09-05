@@ -88,7 +88,72 @@ class GpioZeroHardware:
         self.rotate.close()
 
 
-def create_hardware(driver: str, simulate_delay: float):
+class Pca9685Hardware:
+    """Управлять сервоприводами через I2C-драйвер PCA9685.
+
+    Канал 0 наклоняет площадку, канал 1 поворачивает распределитель. Таблица
+    действий совпадает с GPIO-вариантом, поэтому калибровку механики достаточно
+    менять в одном месте.
+    """
+
+    ACTIONS = GpioZeroHardware.ACTIONS
+
+    def __init__(
+        self,
+        address: int = 0x40,
+        tilt_channel: int = 0,
+        rotate_channel: int = 1,
+    ):
+        """Открыть PCA9685 и настроить диапазон импульсов сервоприводов."""
+        try:
+            from adafruit_servokit import ServoKit
+        except ModuleNotFoundError as exc:
+            raise RuntimeError(
+                "Драйвер PCA9685 недоступен. Установите пакет "
+                "adafruit-circuitpython-servokit и включите I2C."
+            ) from exc
+
+        self.kit = ServoKit(channels=16, address=address)
+        self.tilt = self.kit.servo[tilt_channel]
+        self.rotate = self.kit.servo[rotate_channel]
+        for servo in (self.tilt, self.rotate):
+            servo.set_pulse_width_range(500, 2500)
+
+    @staticmethod
+    def _move(servo, angle: float) -> None:
+        """Ограничить угол безопасным диапазоном и дождаться движения."""
+        servo.angle = max(0, min(180, angle))
+        time.sleep(0.7)
+
+    def center(self) -> None:
+        """Вернуть наклон и поворот в нейтральные положения."""
+        self._move(self.tilt, 95)
+        self._move(self.rotate, 90)
+
+    def sort_to(self, section: str) -> None:
+        """Повернуть распределитель, сбросить предмет и вернуться в центр."""
+        action = self.ACTIONS[section]
+        self._move(self.rotate, action["rotate"])
+        self._move(self.tilt, action["tilt"])
+        time.sleep(0.5)
+        self.center()
+
+    def close(self) -> None:
+        """Отключить PWM на обоих каналах и освободить I2C-ресурсы."""
+        self.tilt.angle = None
+        self.rotate.angle = None
+        pca = getattr(self.kit, "_pca", None)
+        if pca is not None and hasattr(pca, "deinit"):
+            pca.deinit()
+
+
+def create_hardware(
+    driver: str,
+    simulate_delay: float,
+    pca9685_address: int = 0x40,
+    tilt_channel: int = 0,
+    rotate_channel: int = 1,
+):
     """Создать выбранный драйвер механизма.
 
     Неизвестные значения заранее отклоняются в ``AppConfig.validate()``, поэтому
@@ -96,4 +161,6 @@ def create_hardware(driver: str, simulate_delay: float):
     """
     if driver == "gpiozero":
         return GpioZeroHardware()
+    if driver == "pca9685":
+        return Pca9685Hardware(pca9685_address, tilt_channel, rotate_channel)
     return ConsoleHardware(simulate_delay)

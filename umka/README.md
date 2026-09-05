@@ -1,6 +1,49 @@
 # UMKA
 
-Автономная система распознавания и сортировки мусора для Raspberry Pi 4/5 с USB-камерой. По умолчанию моторы не используются: выбранная секция выводится в консоль и в веб-интерфейс.
+Автономная система распознавания и сортировки мусора для Raspberry Pi 4/5 с USB-камерой.
+
+## Быстрый старт
+
+Рекомендуется актуальная Raspberry Pi OS 64-bit. Все команды ниже выполняются на Raspberry Pi по SSH пользователем `pi`.
+
+Узнайте IP-адрес Raspberry Pi непосредственно на устройстве:
+
+```bash
+hostname -I
+```
+
+Перейдите на своём компьютере в корень этого репозитория, создайте каталог `app` на Pi и скопируйте в него содержимое папки `umka`:
+
+```bash
+ssh pi@192.168.1.101 'mkdir -p /home/pi/app'
+scp -r umka/. pi@192.168.1.101:/home/pi/app/
+```
+
+После копирования снова подключитесь и проверьте файлы. Эти команды выполняются уже **на Raspberry Pi по SSH**:
+
+```bash
+cd ~/app
+ls
+```
+
+Установите необходимое окружения и библиотеки:
+
+```bash
+# Если необходимо обновить через прокси
+# sudo -E apt update
+# sudo -E apt upgrade
+
+sudo apt update
+sudo apt install -y python3-full python3-venv libopenblas-dev v4l-utils \
+    python3-gpiozero python3-lgpio i2c-tools
+
+cd ~/app
+# --system-site-packages нужен для gpiozero/lgpio, установленных через apt.
+python3 -m venv --system-site-packages .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip wheel
+python -m pip install -r requirements.txt
+```
 
 ## Создание отдельного пользователя на Raspberry Pi
 
@@ -11,10 +54,10 @@ sudo adduser umka
 sudo usermod -aG sudo,video umka
 ```
 
-Если в дальнейшем будут подключены сервоприводы через GPIO, добавьте пользователя также в группу `gpio`:
+Для сервоприводов добавьте пользователя в группы прямого GPIO и шины I2C:
 
 ```bash
-sudo usermod -aG gpio umka
+sudo usermod -aG gpio,i2c umka
 ```
 
 Переключитесь в полноценную login-сессию нового пользователя:
@@ -41,71 +84,6 @@ umka
 
 Все дальнейшие команды на Raspberry Pi выполняйте пользователем `umka`, а проект размещайте в `/home/umka/app`. Не создавайте виртуальное окружение и не запускайте приложение от `root`.
 
-## Подключение по SSH и копирование программы
-
-Узнайте IP-адрес Raspberry Pi непосредственно на устройстве:
-
-```bash
-hostname -I
-```
-
-Дальнейшую работу можно выполнять по SSH со своего компьютера.
-
-Для первого копирования программы завершите SSH-сессию командой `exit`, перейдите на своём компьютере в корень этого репозитория, создайте каталог `app` на Pi и скопируйте в него содержимое папки `umka`:
-
-```bash
-cd /путь/к/sk-aisb
-ssh umka@<IP_RASPBERRY_PI> 'mkdir -p /home/umka/app'
-scp -r umka/. umka@<IP_RASPBERRY_PI>:/home/umka/app/
-```
-
-Например:
-
-```bash
-ssh umka@10.7.161.122 'mkdir -p /home/umka/app'
-scp -r umka/. umka@10.7.161.122:/home/umka/app/
-```
-
-После копирования снова подключитесь и проверьте файлы. Эти команды выполняются уже **на Raspberry Pi по SSH**:
-
-```bash
-cd ~/app
-ls
-```
-
-В каталоге должны находиться как минимум `app.py`, `requirements.txt`, `best.pt`, папка `sorter` с логикой сортировки и папка `web` с интерфейсом.
-
-## Что делает приложение
-
-1. Отдельный поток камеры всегда хранит только последний кадр.
-2. YOLO распознаёт предмет в обрезанной области кадра.
-3. Класс должен подтвердиться несколько кадров подряд.
-4. Автомат состояний имитирует или выполняет сортировку.
-5. Один предмет не обрабатывается повторно, пока площадка не станет пустой.
-6. Встроенный Python-сервер показывает состояние на порту `3000`.
-
-Классы `empty` и `hand` игнорируются. Ошибочное имя модели `papper` автоматически преобразуется в `paper`. Любой другой распознанный класс считается `non_recyclable`.
-
-## Установка на тестовый Raspberry Pi 4
-
-Рекомендуется актуальная Raspberry Pi OS 64-bit. Все команды ниже выполняются на Raspberry Pi по SSH пользователем `umka`.
-
-```bash
-# Если необходимо обновить через прокси
-# sudo -E apt update
-# sudo -E apt upgrade
-
-sudo apt update
-sudo apt install -y python3-full python3-venv libopenblas-dev v4l-utils \
-    python3-gpiozero python3-lgpio
-
-cd ~/app
-# --system-site-packages нужен для gpiozero/lgpio, установленных через apt.
-python3 -m venv --system-site-packages .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip wheel
-python -m pip install -r requirements.txt
-```
 
 ## Автоматический переход в программу при входе по SSH
 
@@ -218,22 +196,48 @@ python app.py --confidence 0.55 --stable-frames 4 --clear-frames 8
 
 Проверьте, что эти секции соответствуют физическому расположению баков.
 
-## Настоящие моторы
+## Настоящие моторы через PCA9685 (I2C)
 
-Тестовый режим `console` безопасен и используется по умолчанию. Пакеты `gpiozero` и `lgpio` устанавливаются в основном шаге до создания `.venv`. Проверьте их и включите настоящий драйвер явно:
+Тестовый режим `console` безопасен и используется по умолчанию. Для штатного
+подключения используется PCA9685: сервопривод наклона подключён к каналу `0`,
+поворота — к каналу `1`; стандартный адрес платы — `0x40`.
+
+Включите I2C через `sudo raspi-config` (`Interface Options` → `I2C`), перезагрузите
+Raspberry Pi и проверьте, что плата видна:
+
+```bash
+sudo reboot
+i2cdetect -y 1
+python -c "from adafruit_servokit import ServoKit; print('ServoKit доступен')"
+python app.py --hardware pca9685
+```
+
+Если адрес или каналы отличаются, укажите их явно:
+
+```bash
+python app.py --hardware pca9685 --pca9685-address 0x41 \
+    --tilt-channel 2 --rotate-channel 3
+```
+
+Не подавайте питание сервоприводов от линии `5V` Raspberry Pi: используйте
+отдельный источник подходящей мощности и соедините его землю с GND Raspberry Pi.
+Перед работой необходимо откалибровать углы в `sorter/hardware.py`.
+
+## Прямое управление через GPIO
+
+Предыдущий вариант сохранён: GPIO 12 управляет наклоном, GPIO 13 — поворотом.
+Пакеты `gpiozero` и `lgpio` устанавливаются в основном шаге до создания `.venv`.
 
 ```bash
 python -c "import gpiozero, lgpio; print('GPIO-библиотеки доступны')"
 python app.py --hardware gpiozero
 ```
 
-Перед этим необходимо откалибровать углы в `sorter/hardware.py`.
-
 ## Ярлыки на рабочем столе Raspberry Pi
 
 В каталоге `desktop` подготовлены два ярлыка:
 
-- `umka-start.desktop` запускает программу с настоящим драйвером `gpiozero` и показывает журнал в терминале;
+- `umka-start.desktop` запускает программу с I2C-драйвером `pca9685` и показывает журнал в терминале;
 - `umka-screen.desktop` запускает локальный helper, ждёт сервер и открывает страницу `http://localhost:3000` в Chromium во весь экран.
 
 Ярлыки предназначены для Raspberry Pi OS с графическим рабочим столом. На Raspberry Pi OS Lite Chromium и рабочий стол отсутствуют. Сначала откройте обычный терминал непосредственно на рабочем столе Raspberry Pi и выполните:
@@ -366,7 +370,7 @@ sudo journalctl -u umka.service -f
 При необходимости путь к активному файлу можно изменить:
 
 ```bash
-python app.py --hardware gpiozero --log-file /home/umka/app/data/logs/test.log
+python app.py --hardware pca9685 --log-file /home/umka/app/data/logs/test.log
 ```
 
 ## Автозапуск
