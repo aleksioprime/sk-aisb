@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+# Корень UMKA: на Raspberry Pi обычно /home/umka/app.
 BASE_DIR = Path(__file__).resolve().parents[1]
 
 
@@ -16,53 +17,76 @@ class AppConfig:
     Пути вычисляются от расположения пакета, поэтому приложение можно запускать
     из любого рабочего каталога. Для изменяемых словарей используются фабрики,
     чтобы экземпляры конфигурации не разделяли одно состояние.
+
+    После изменения настроек перезапустите программу. Параметры, передаваемые
+    из app.py через replace(), берутся из аргументов командной строки, включая
+    их значения по умолчанию в parse_args(). Это относится к камере, серверу,
+    драйверу, I2C, порогу уверенности и числу кадров: для них проверяйте и app.py.
+    Углы моторов задаются отдельно, в начале sorter/hardware.py.
     """
 
     # Файлы и каталоги приложения.
-    model_path: Path = BASE_DIR / "best.pt"
-    stats_path: Path = BASE_DIR / "data" / "sort_stats.json"
-    events_path: Path = BASE_DIR / "data" / "events" / "events.jsonl"
-    log_path: Path = BASE_DIR / "data" / "logs" / "umka.log"
-    static_dir: Path = BASE_DIR / "web"
+    model_path: Path = BASE_DIR / "best.pt"  # Веса обученной модели YOLO.
+    stats_path: Path = BASE_DIR / "data" / "sort_stats.json"  # Общие счётчики и масса.
+    events_path: Path = BASE_DIR / "data" / "events" / "events.jsonl"  # История операций.
+    log_path: Path = BASE_DIR / "data" / "logs" / "umka.log"  # Журнал работы и ошибок.
+    static_dir: Path = BASE_DIR / "web"  # HTML, CSS, JavaScript и картинки интерфейса.
+
     # USB-камера и параметры изображения для YOLO.
-    camera_index: int = 0
-    camera_width: int = 640
-    camera_height: int = 480
-    image_size: int = 416
-    confidence: float = 0.60
-    min_box_area: int = 2500
+    camera_index: int = 0  # Номер /dev/videoN: 0 означает /dev/video0.
+    camera_width: int = 640  # Запрашиваемая ширина кадра, пиксели.
+    camera_height: int = 480  # Запрашиваемая высота; камера может выбрать другую.
+    image_size: int = 416  # Размер входа YOLO (imgsz), пиксели; не размер кадра камеры.
+    confidence: float = 0.60  # Минимальная уверенность YOLO: 0.60 = 60%, диапазон 0–1.
+    min_box_area: int = 2500  # Минимальная площадь рамки в обрезанном кадре, пиксели².
+
     # Защита от одиночных ложных распознаваний и повторной обработки предмета.
-    stable_frames: int = 5
-    clear_frames: int = 10
+    stable_frames: int = 5  # Столько результатов подряд с одним классом запускают сброс.
+    clear_frames: int = 10  # Столько результатов без объекта разрешают следующий сброс.
+    # Считаются обработанные кадры, а не секунды и не все кадры видеопотока.
+
     # Отступы области площадки от границ исходного кадра, в пикселях.
-    crop_top: int = 40
-    crop_bottom: int = 85
-    crop_left: int = 100
-    crop_right: int = 66
+    crop_top: int = 40  # Убрать сверху.
+    crop_bottom: int = 85  # Убрать снизу.
+    crop_left: int = 100  # Убрать слева.
+    crop_right: int = 66  # Убрать справа.
+    # Чем больше отступы, тем меньше область, в которой ищутся предметы.
+
     # Веб-интерфейс и драйвер физического механизма.
-    web_host: str = "0.0.0.0"
-    web_port: int = 3000
+    web_host: str = "0.0.0.0"  # Слушать все IPv4-интерфейсы; 127.0.0.1 — только сам Pi.
+    web_port: int = 3000  # Порт страницы и API: http://<IP_RASPBERRY_PI>:3000.
+    # console — имитация; pca9685 — моторы через I2C; gpiozero — напрямую через GPIO.
     hardware_driver: str = "console"
-    simulate_delay: float = 1.0
-    pca9685_address: int = 0x40
-    tilt_servo_channel: int = 1
-    rotate_servo_channel: int = 0
+    simulate_delay: float = 1.0  # Длительность имитации сброса, секунды; только console.
+    pca9685_address: int = 0x40  # I2C-адрес всей платы, а не отдельного мотора.
+    tilt_servo_channel: int = 1  # Выход PCA9685 для наклона, номер 0–15.
+    rotate_servo_channel: int = 0  # Выход PCA9685 для поворота; отличается от наклона.
+    # Эти каналы не являются GPIO-номерами и не меняют проводку драйвера gpiozero.
+
     # Имена классов модели сначала нормализуются, затем фильтруются и только
     # после этого сопоставляются физической секции и типу для интерфейса.
+    # Слева имя из модели, справа внутреннее имя: исправляет papper → paper.
     class_aliases: dict[str, str] = field(default_factory=lambda: {"papper": "paper"})
-    ignored_classes: frozenset[str] = frozenset({"empty", "hand"})
+    ignored_classes: frozenset[str] = frozenset({"empty", "hand"})  # Не запускают сброс.
+    # Класс → физический отсек. Чтобы поменять баки местами, меняйте значения здесь.
+    # section_1–section_4 соответствуют ключам ACTIONS в hardware.py и командам 1–4
+    # в calibrate.py. Неизвестные классы детектор относит к non_recyclable.
     class_to_section: dict[str, str] = field(default_factory=lambda: {
-        "paper": "section_1",
-        "plastic": "section_2",
-        "organic": "section_3",
-        "non_recyclable": "section_4",
+        "paper": "section_4",  # Бумага.
+        "plastic": "section_3",  # Пластик.
+        "organic": "section_2",  # Органика.
+        "non_recyclable": "section_1",  # Неперерабатываемые и неизвестные классы.
     })
+    # Класс → категория для интерфейса и статистики. Не определяет движение моторов.
+    # plastic_aluminum — имя общей категории «Пластик и алюминий» в интерфейсе.
     class_to_waste_type: dict[str, str] = field(default_factory=lambda: {
         "paper": "paper",
         "plastic": "plastic_aluminum",
         "organic": "organic",
         "non_recyclable": "non_recyclable",
     })
+    # Оценочная масса ОДНОГО предмета по классу, кг; не измерение весами.
+    # Используется для подсчёта массы в статистике и записи события сортировки.
     estimated_weight_kg: dict[str, float] = field(default_factory=lambda: {
         "paper": 0.05,
         "plastic": 0.03,
