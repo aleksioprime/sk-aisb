@@ -26,6 +26,12 @@ const typeToClass = {
 };
 
 let currentState = null;
+let acceptedFeedback = null;
+let answerPending = false;
+let feedbackTimer = null;
+const FEEDBACK_EMOTION_MS = 4000;
+let feedbackEmotionTimer = null;
+let feedbackEmotionEventId = null;
 let pollTimer = null;
 let idleAnimationTimer = null;
 let activeAnimationTimeout = null;
@@ -151,6 +157,7 @@ function initQRCode() {
 // Обработка касания мордочки
 function handleFaceTouch(e) {
   if (isTouching) return;
+  if (feedbackEmotionTimer !== null) return;
   if (currentState && currentState.state === "waste") return;
 
   isTouching = true;
@@ -299,6 +306,19 @@ function setEmotion(emotion) {
   }
 }
 
+// Эмоция на ответ пользователя с возвратом к обычным глазам через четыре секунды.
+function showFeedbackEmotion(answer, eventId) {
+  // Каждый ответ проигрывается один раз; опрос API не продлевает анимацию.
+  if (feedbackEmotionEventId === eventId) return;
+  feedbackEmotionEventId = eventId;
+  clearTimeout(feedbackEmotionTimer);
+  setEmotion(answer === "yes" ? "happy" : "sad");
+  feedbackEmotionTimer = setTimeout(() => {
+    feedbackEmotionTimer = null;
+    setEmotion("idle");
+  }, FEEDBACK_EMOTION_MS);
+}
+
 // Планирование случайной idle-анимации
 function scheduleIdleAnimation() {
   if (idleAnimationTimer) clearTimeout(idleAnimationTimer);
@@ -307,6 +327,7 @@ function scheduleIdleAnimation() {
     if (
       currentState &&
       currentState.state === "idle" &&
+      feedbackEmotionTimer === null &&
       !isRandomAnimationActive &&
       !isTouching
     ) {
@@ -337,9 +358,8 @@ async function fetchState() {
     if (!res.ok) throw new Error("Ошибка API");
     const data = await res.json();
     if (JSON.stringify(data) !== JSON.stringify(currentState)) {
-      const previousState = currentState ? currentState.state : null;
       currentState = data;
-      updateUI(data, previousState);
+      updateUI(data);
     }
   } catch (err) {
     console.error("Ошибка получения состояния:", err);
@@ -347,7 +367,12 @@ async function fetchState() {
 }
 
 // Обновление интерфейса
-function updateUI(data, previousState) {
+function updateUI(data) {
+  // Локальное подтверждение защищает от запоздавшего опроса с lastAnswer=null.
+  const answer = data.lastAnswer ||
+    (acceptedFeedback && acceptedFeedback.eventId === data.eventId
+      ? acceptedFeedback.answer : null);
+  const finishing = data.state === "waste" && Boolean(answer);
   statCount.textContent = data.totalCount ?? 0;
   statWeight.textContent = data.totalWeight ?? 0;
   const cameraText = data.camera?.ok
@@ -368,26 +393,28 @@ function updateUI(data, previousState) {
     WAITING_FOR_REMOVAL: "Уберите предмет с площадки",
   };
   systemStatus.textContent =
-    statuses[data.controllerState] || "Система запущена";
+    finishing ? "Завершаю сортировку…" :
+      statuses[data.controllerState] || "Система запущена";
   document.querySelectorAll(".btn[data-answer]").forEach((btn) => {
-    btn.disabled = Boolean(data.lastAnswer);
+    btn.disabled = answerPending || Boolean(answer);
   });
 
-  if (data.state === "idle") {
+  if (finishing) {
+    // Меняем только экран: сервер продолжает ждать завершения механики
+    // и подтверждённого освобождения площадки перед следующим сбросом.
     showIdle(data);
-    if (previousState === "waste") {
-      if (data.lastAnswer === "yes") {
-        setEmotion("happy");
-        setTimeout(() => setEmotion("idle"), 2000);
-      } else if (data.lastAnswer === "no") {
-        setEmotion("sad");
-        setTimeout(() => setEmotion("idle"), 2000);
-      }
-    } else {
+    showFeedbackEmotion(answer, data.eventId);
+    if (idleAnimationTimer) clearTimeout(idleAnimationTimer);
+  } else if (data.state === "idle") {
+    showIdle(data);
+    if (feedbackEmotionTimer === null) {
       setEmotion("idle");
     }
     scheduleIdleAnimation();
   } else if (data.state === "waste") {
+    // Новый предмет прерывает старую эмоцию; её таймер не должен менять новый экран.
+    clearTimeout(feedbackEmotionTimer);
+    feedbackEmotionTimer = null;
     showWaste(data);
     setEmotion("surprised");
     if (idleAnimationTimer) clearTimeout(idleAnimationTimer);
@@ -416,22 +443,36 @@ function showWaste(data) {
 }
 
 async function handleAnswer(answer) {
+  const eventId = currentState?.eventId;
+  if (!eventId || answerPending || currentState.lastAnswer ||
+      acceptedFeedback?.eventId === eventId) return;
+  answerPending = true;
+  document.querySelectorAll(".btn[data-answer]").forEach((btn) => {
+    btn.disabled = true;
+  });
   try {
     const res = await fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ answer, eventId: currentState?.eventId }),
+      body: JSON.stringify({ answer, eventId }),
     });
     if (!res.ok) throw new Error("Ошибка отправки ответа");
+    acceptedFeedback = { eventId, answer };
+    // Пока шёл POST, сервер мог уже перейти к следующему предмету.
+    if (currentState?.eventId !== eventId) return;
     feedbackIcon.textContent = answer === "yes" ? "✅" : "❌";
     feedbackOverlay.classList.add("active");
-    setEmotion(answer === "yes" ? "happy" : "sad");
-    setTimeout(() => {
+    updateUI(currentState);
+    clearTimeout(feedbackTimer);
+    feedbackTimer = setTimeout(() => {
       feedbackOverlay.classList.remove("active");
       fetchState();
     }, 800);
   } catch (err) {
     console.error("Ошибка:", err);
     alert("Не удалось отправить ответ");
+  } finally {
+    answerPending = false;
+    if (currentState) updateUI(currentState);
   }
 }

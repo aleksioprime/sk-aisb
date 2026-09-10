@@ -19,6 +19,7 @@
   --paw-pad-color: #137a70;
   --paw-happy-color: #16a34a;
   --paw-sad-color: #3b82f6;
+  --sad-paw-drop: 12px; /* Насколько опускаются лапки при ответе «Нет». */
 }
 
 * {
@@ -309,7 +310,7 @@ body {
     transform: translateY(0) rotate(0deg);
   }
   100% {
-    transform: translateY(40px) rotate(10deg);
+    transform: translateY(var(--sad-paw-drop)) rotate(10deg);
   }
 }
 
@@ -318,7 +319,7 @@ body {
     transform: translateY(0) rotate(0deg);
   }
   100% {
-    transform: translateY(40px) rotate(-10deg);
+    transform: translateY(var(--sad-paw-drop)) rotate(-10deg);
   }
 }
 
@@ -568,7 +569,7 @@ body {
 /* Радость */
 .emotion-happy .eye-slot {
   background: linear-gradient(135deg, #4ade80 0%, #16a34a 100%);
-  animation: happyComplex 0.8s ease-in-out 2;
+  animation: happyComplex 0.8s ease-in-out infinite;
 }
 @keyframes happyComplex {
   0% {
@@ -596,7 +597,7 @@ body {
 /* Печаль: прямоугольные треугольники (плоская грань внутрь и вниз) */
 .emotion-sad .eye-slot {
   background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-  animation: sadComplex 0.8s ease-in-out 2;
+  animation: sadComplex 0.8s ease-in-out infinite;
 }
 
 .emotion-sad .eye-left .eye-slot {
