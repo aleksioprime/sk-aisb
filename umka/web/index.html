@@ -45,7 +45,6 @@
               <span class="pulse-dot"></span>
               <span id="system-status">Запуск системы...</span>
             </div>
-            <p class="diagnostics" id="diagnostics">Камера: проверка · Модель: проверка</p>
             <div class="stats-wrapper">
               <p class="sorted-label">уже отсортировано</p>
               <div class="stats">
@@ -63,7 +62,7 @@
 
           <div class="qr-container">
             <div id="qrcode"></div>
-            <p class="qr-hint">Сайт Умки</p>
+            <p class="qr-hint">умка.москва</p>
           </div>
         </div>
       </div>
@@ -80,7 +79,6 @@
             <h1 class="waste-title">Обнаружен мусор</h1>
             <p class="waste-type">Бумага</p>
             <p class="waste-question">Подтвердите тип отхода</p>
-            <p class="action-status">Секция: <span data-section>—</span> · <span data-action>ожидание</span></p>
           </div>
           <div class="buttons">
             <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
@@ -98,7 +96,6 @@
             <h1 class="waste-title">Обнаружен мусор</h1>
             <p class="waste-type">Пластик/Алюминий</p>
             <p class="waste-question">Подтвердите тип отхода</p>
-            <p class="action-status">Секция: <span data-section>—</span> · <span data-action>ожидание</span></p>
           </div>
           <div class="buttons">
             <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
@@ -116,7 +113,6 @@
             <h1 class="waste-title">Обнаружен мусор</h1>
             <p class="waste-type">Органика</p>
             <p class="waste-question">Подтвердите тип отхода</p>
-            <p class="action-status">Секция: <span data-section>—</span> · <span data-action>ожидание</span></p>
           </div>
           <div class="buttons">
             <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
@@ -134,7 +130,6 @@
             <h1 class="waste-title">Обнаружен мусор</h1>
             <p class="waste-type">Несортируемые отходы</p>
             <p class="waste-question">Подтвердите тип отхода</p>
-            <p class="action-status">Секция: <span data-section>—</span> · <span data-action>ожидание</span></p>
           </div>
           <div class="buttons">
             <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
@@ -149,13 +144,14 @@
       <div class="feedback-icon" id="feedback-icon">✅</div>
     </div>
 
-    <!-- Диалог открывается скрытым жестом: пять касаний логотипа. -->
+    <!-- Отладочное окно открывается скрытым жестом: пять касаний логотипа. -->
     <div id="exit-overlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="exit-title">
       <div class="exit-dialog">
-        <h2 id="exit-title">Закрыть экран UMKA?</h2>
-        <p id="exit-message">Программа сортировки продолжит работать в фоне.</p>
+        <h2 id="exit-title">Отладочное окно UMKA</h2>
+        <p class="diagnostics" id="diagnostics">Камера: проверка · Модель: проверка</p>
+        <p id="exit-message">При закрытии экрана программа сортировки продолжит работать в фоне.</p>
         <div class="exit-actions">
-          <button class="btn btn-no" id="exit-cancel" type="button">Отмена</button>
+          <button class="btn btn-no" id="exit-cancel" type="button">Вернуться</button>
           <button class="btn btn-yes" id="exit-confirm" type="button">Закрыть экран</button>
         </div>
       </div>

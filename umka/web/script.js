@@ -98,14 +98,14 @@ document.addEventListener("DOMContentLoaded", () => {
   exitConfirm.addEventListener("click", requestKioskExit);
 });
 
-// Пять касаний логотипа за четыре секунды открывают скрытый выход из kiosk.
+// Пять касаний логотипа за четыре секунды открывают диагностику и выход из kiosk.
 function registerKioskExitTap() {
   const now = Date.now();
   exitTapTimes = exitTapTimes.filter((timestamp) => now - timestamp <= 4000);
   exitTapTimes.push(now);
   if (exitTapTimes.length >= 5) {
     exitTapTimes = [];
-    exitMessage.textContent = "Программа сортировки продолжит работать в фоне.";
+    exitMessage.textContent = "При закрытии экрана программа сортировки продолжит работать в фоне.";
     exitOverlay.classList.add("active");
   }
 }
@@ -434,12 +434,6 @@ function showWaste(data) {
   const targetPage = document.querySelector(`.page-${pageClass}`);
   if (targetPage) targetPage.classList.add("active");
   else document.querySelector(".page-paper").classList.add("active");
-  document.querySelectorAll("[data-section]").forEach((el) => {
-    el.textContent = data.section || "—";
-  });
-  document.querySelectorAll("[data-action]").forEach((el) => {
-    el.textContent = data.lastAction || "распознано";
-  });
 }
 
 async function handleAnswer(answer) {
