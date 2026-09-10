@@ -45,8 +45,8 @@ class AppConfig:
     hardware_driver: str = "console"
     simulate_delay: float = 1.0
     pca9685_address: int = 0x40
-    tilt_servo_channel: int = 0
-    rotate_servo_channel: int = 1
+    tilt_servo_channel: int = 1
+    rotate_servo_channel: int = 0
     # Имена классов модели сначала нормализуются, затем фильтруются и только
     # после этого сопоставляются физической секции и типу для интерфейса.
     class_aliases: dict[str, str] = field(default_factory=lambda: {"papper": "paper"})

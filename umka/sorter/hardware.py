@@ -91,7 +91,7 @@ class GpioZeroHardware:
 class Pca9685Hardware:
     """Управлять сервоприводами через I2C-драйвер PCA9685.
 
-    Канал 0 наклоняет площадку, канал 1 поворачивает распределитель. Таблица
+    Канал 1 наклоняет площадку, канал 0 поворачивает распределитель. Таблица
     действий совпадает с GPIO-вариантом, поэтому калибровку механики достаточно
     менять в одном месте.
     """
@@ -101,8 +101,8 @@ class Pca9685Hardware:
     def __init__(
         self,
         address: int = 0x40,
-        tilt_channel: int = 0,
-        rotate_channel: int = 1,
+        tilt_channel: int = 1,
+        rotate_channel: int = 0,
     ):
         """Открыть PCA9685 и настроить диапазон импульсов сервоприводов."""
         try:
@@ -151,8 +151,8 @@ def create_hardware(
     driver: str,
     simulate_delay: float,
     pca9685_address: int = 0x40,
-    tilt_channel: int = 0,
-    rotate_channel: int = 1,
+    tilt_channel: int = 1,
+    rotate_channel: int = 0,
 ):
     """Создать выбранный драйвер механизма.
 

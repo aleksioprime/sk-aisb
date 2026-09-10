@@ -32,8 +32,8 @@ def parse_args() -> argparse.Namespace:
         default=0x40,
         help="I2C-адрес PCA9685 (по умолчанию 0x40)",
     )
-    parser.add_argument("--tilt-channel", type=int, default=0, help="Канал PCA9685 для наклона")
-    parser.add_argument("--rotate-channel", type=int, default=1, help="Канал PCA9685 для поворота")
+    parser.add_argument("--tilt-channel", type=int, default=1, help="Канал PCA9685 для наклона")
+    parser.add_argument("--rotate-channel", type=int, default=0, help="Канал PCA9685 для поворота")
     parser.add_argument("--confidence", type=float, default=0.60)
     parser.add_argument("--stable-frames", type=int, default=5)
     parser.add_argument("--clear-frames", type=int, default=10)
