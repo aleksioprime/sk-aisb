@@ -45,6 +45,127 @@ python -m pip install --upgrade pip wheel
 python -m pip install -r requirements.txt
 ```
 
+## Ошибка `Illegal instruction` на Raspberry Pi 4
+
+Симптом: программа стартует, печатает адрес веб-интерфейса и классы модели,
+после чего процесс молча погибает на первом распознавании:
+
+```text
+INFO sorter.detector: Классы модели: ['hand', 'organic', 'paper', 'plastic']
+Illegal instruction
+```
+
+На Raspberry Pi 5 та же программа работает без ошибок.
+
+### Причина
+
+`Illegal instruction` (сигнал SIGILL) означает, что процессор встретил машинную
+инструкцию, которой у него нет. Это не ошибка кода программы, а несовместимость
+скачанного бинарного пакета с процессором:
+
+| Устройство | Процессор | Архитектура |
+| --- | --- | --- |
+| Raspberry Pi 4 | Cortex-A72 | ARMv8.0-A (нет `asimddp` и `fphp`) |
+| Raspberry Pi 5 | Cortex-A76 | ARMv8.2-A (dotprod и fp16 есть) |
+
+Свежие пакеты PyTorch для aarch64 собираются с вычислительными ядрами, которые
+рассчитаны на ARMv8.2-A. На Pi 5 они выполняются, на Pi 4 первая же свёртка
+завершает процесс. Сообщение «Классы модели» подтверждает, что `import torch` и
+чтение весов прошли успешно, — падение происходит уже внутри `model.predict()`.
+
+Убедиться в различии процессоров можно на каждом устройстве:
+
+```bash
+lscpu | grep -i flags
+```
+
+На Raspberry Pi 4 в выводе не будет `asimddp` и `fphp`, на Raspberry Pi 5 они есть.
+
+### Как найти виновную библиотеку
+
+Модуль `faulthandler` перехватывает SIGILL и печатает место падения:
+
+```bash
+python -X faulthandler app.py --hardware pca9685
+```
+
+Ядро системы сообщает об этом же событии (запустите в отдельном сеансе SSH):
+
+```bash
+dmesg -w | grep -i "undefined instruction"
+```
+
+Проверка одного лишь PyTorch, без камеры и веб-интерфейса:
+
+```bash
+python -X faulthandler -c "import torch; print(torch.__version__); print(torch.nn.Conv2d(3, 8, 3)(torch.rand(1, 3, 64, 64)).shape)"
+```
+
+Если падает уже эта команда, виноват PyTorch — переходите к исправлению ниже.
+
+### Исправление вручную
+
+Установите версии PyTorch, проверенные на Cortex-A72:
+
+```bash
+cd ~/app
+source .venv/bin/activate
+pip install --force-reinstall torch==2.9.0 torchvision==0.24.0
+```
+
+Проверьте результат:
+
+```bash
+python -c "import torch, torchvision; print(torch.__version__, torchvision.__version__)"
+python -X faulthandler -c "import torch; print(torch.nn.Conv2d(3, 8, 3)(torch.rand(1, 3, 64, 64)).shape)"
+```
+
+Важно: в [requirements.txt](requirements.txt) версия `torch` не зафиксирована —
+её подтягивает `ultralytics`. Поэтому после каждой переустановки зависимостей
+командой `pip install -r requirements.txt` на Raspberry Pi 4 ошибка вернётся и
+понижение версии придётся повторить.
+
+### Возможные улучшения
+
+Ручное понижение версии лечит симптом, но оставляет две проблемы: программа
+привязана к устаревшему PyTorch, а распознавание на Raspberry Pi 4 остаётся
+медленным. Ниже — два способа решить это основательно. Оба пока не реализованы.
+
+**1. Зафиксировать версии отдельным файлом ограничений.** Определить модель
+процессора маркерами `pip` нельзя, поэтому нужен отдельный файл, например
+`constraints-pi4.txt`:
+
+```text
+torch==2.9.0
+torchvision==0.24.0
+```
+
+Тогда установка на Raspberry Pi 4 выполняется так и повторяется без сюрпризов:
+
+```bash
+pip install -r requirements.txt -c constraints-pi4.txt
+```
+
+На Raspberry Pi 5 файл ограничений не нужен.
+
+**2. Перевести распознавание на NCNN.** Библиотека NCNN выбирает инструкции
+процессора во время работы, а не во время сборки, поэтому один и тот же экспорт
+работает и на Cortex-A72, и на Cortex-A76. Дополнительно это ускоряет
+распознавание на Raspberry Pi 4 примерно в 2–3 раза. Скрипт экспорта уже есть в
+репозитории — [prepare/export_ncnn.py](../prepare/export_ncnn.py):
+
+```bash
+python prepare/export_ncnn.py --model umka/best.pt --imgsz 416
+```
+
+Он создаёт каталог `best_ncnn_model`, который передаётся в `YOLO()` вместо файла
+`best.pt`. Для этого потребуется правка [sorter/config.py](sorter/config.py):
+сейчас проверка `model_path.is_file()` отклоняет путь к каталогу.
+
+Учтите, что пакет `ultralytics` всё равно импортирует `torch`, поэтому он
+останется в окружении. Но тяжёлые вычисления уйдут в NCNN, а сам импорт `torch`
+на Raspberry Pi 4 проходит нормально — падение происходит только на вычислениях.
+
 ## Создание отдельного пользователя на Raspberry Pi
 
 Сначала войдите под пользователем, который уже имеет права `sudo`, и создайте отдельного пользователя `umka`:
