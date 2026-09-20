@@ -1,0 +1,7 @@
+# Сначала установите CPU-сборки PyTorch по инструкции ORANGE_PI.md.
+-r requirements.txt
+torch==2.10.0+cpu
+torchvision==0.25.0+cpu
+Adafruit-Blinka>=9.2.0
+adafruit-extended-bus
+gpiod>=2.0.2,<3

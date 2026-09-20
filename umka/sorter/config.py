@@ -62,6 +62,9 @@ class AppConfig:
     tilt_servo_channel: int = 1  # Выход PCA9685 для наклона, номер 0–15.
     rotate_servo_channel: int = 0  # Выход PCA9685 для поворота; отличается от наклона.
     # Эти каналы не являются GPIO-номерами и не меняют проводку драйвера gpiozero.
+    # Номер шины /dev/i2c-N для PCA9685. None — определить автоматически:
+    # Orange Pi 5B получает шину 5, Raspberry Pi оставляет выбор Blinka.
+    i2c_bus: int | None = None
 
     # Имена классов модели сначала нормализуются, затем фильтруются и только
     # после этого сопоставляются физической секции и типу для интерфейса.
@@ -111,6 +114,8 @@ class AppConfig:
             raise ValueError("Каналы PCA9685 должны находиться в диапазоне 0–15")
         if self.tilt_servo_channel == self.rotate_servo_channel:
             raise ValueError("Для наклона и поворота нужны разные каналы PCA9685")
+        if self.i2c_bus is not None and self.i2c_bus < 0:
+            raise ValueError("Номер шины I2C не может быть отрицательным")
 
     def normalize_class(self, name: str) -> str:
         """Привести имя класса YOLO к внутреннему каноническому имени."""

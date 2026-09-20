@@ -84,6 +84,7 @@ class UmkaApplication:
                 self.config.pca9685_address,
                 self.config.tilt_servo_channel,
                 self.config.rotate_servo_channel,
+                self.config.i2c_bus,
             )
             self.hardware.center()
             self.camera = UsbCamera(

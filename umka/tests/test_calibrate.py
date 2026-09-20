@@ -28,9 +28,13 @@ class CalibrationTests(unittest.TestCase):
     def test_custom_connection_is_forwarded(self):
         factory, _ = self.run_session(["q"], [
             "--hardware", "pca9685", "--pca9685-address", "0x41",
-            "--tilt-channel", "2", "--rotate-channel", "3",
+            "--tilt-channel", "2", "--rotate-channel", "3", "--i2c-bus", "5",
         ])
-        factory.assert_called_once_with("pca9685", 0, 0x41, 2, 3)
+        factory.assert_called_once_with("pca9685", 0, 0x41, 2, 3, 5)
+
+    def test_bus_is_detected_when_not_given(self):
+        factory, _ = self.run_session(["q"], ["--hardware", "pca9685"])
+        factory.assert_called_once_with("pca9685", 0, 0x40, 1, 0, None)
 
     def test_eof_and_interrupt_release_hardware(self):
         for ending in (EOFError, KeyboardInterrupt):
@@ -55,7 +59,8 @@ class CalibrationTests(unittest.TestCase):
 
     def test_invalid_connection_never_opens_hardware(self):
         for args in (["--tilt-channel", "0", "--rotate-channel", "0"],
-                     ["--tilt-channel", "16"], ["--pca9685-address", "0x80"]):
+                     ["--tilt-channel", "16"], ["--pca9685-address", "0x80"],
+                     ["--i2c-bus", "-1"]):
             with self.subTest(args=args), \
                     patch("calibrate.create_hardware") as factory, \
                     patch("sys.stderr", new_callable=io.StringIO):

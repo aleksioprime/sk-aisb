@@ -22,11 +22,15 @@ def parse_args(argv=None) -> argparse.Namespace:
                         default=defaults.tilt_servo_channel)
     parser.add_argument("--rotate-channel", type=int, choices=range(16),
                         default=defaults.rotate_servo_channel)
+    parser.add_argument("--i2c-bus", type=int, default=defaults.i2c_bus,
+                        help="Номер шины /dev/i2c-N; по умолчанию автоопределение")
     args = parser.parse_args(argv)
     if not 0x03 <= args.pca9685_address <= 0x77:
         parser.error("Адрес PCA9685 должен находиться в диапазоне 0x03–0x77")
     if args.tilt_channel == args.rotate_channel:
         parser.error("Для наклона и поворота нужны разные каналы PCA9685")
+    if args.i2c_bus is not None and args.i2c_bus < 0:
+        parser.error("Номер шины I2C не может быть отрицательным")
     return args
 
 
@@ -40,7 +44,8 @@ def main(argv=None) -> None:
         print(f"{section}: rotate={angles['rotate']}°, tilt={angles['tilt']}°")
     print("При запуске механизм возвращается в центр.")
     hardware = create_hardware(args.hardware, 0, args.pca9685_address,
-                               args.tilt_channel, args.rotate_channel)
+                               args.tilt_channel, args.rotate_channel,
+                               args.i2c_bus)
     try:
         hardware.center()
         print("Команды: 1–4 — сброс в секцию; c — центр; q — выход.")

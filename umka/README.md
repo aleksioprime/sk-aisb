@@ -2,6 +2,9 @@
 
 Автономная система распознавания и сортировки мусора для Raspberry Pi 4/5 с USB-камерой.
 
+Для Orange Pi 5B с Ubuntu 22.04 Jammy и PCA9685 используйте
+[отдельную инструкцию](ORANGE_PI.md).
+
 ## Быстрый старт
 
 Рекомендуется актуальная Raspberry Pi OS 64-bit. Все команды ниже выполняются на Raspberry Pi по SSH пользователем `pi`.
@@ -345,6 +348,18 @@ python app.py --hardware pca9685 --pca9685-address 0x41 \
     --tilt-channel 2 --rotate-channel 3
 ```
 
+Шину I2C программа выбирает сама: на Raspberry Pi это `/dev/i2c-1`, на
+Orange Pi 5 и 5B — `/dev/i2c-5`. Если плата не опознана, появляется ошибка
+`No Hardware I2C on (scl,sda)`; тогда укажите номер шины явно тем же
+параметром и в `app.py`, и в `calibrate.py`:
+
+```bash
+python app.py --hardware pca9685 --i2c-bus 5
+```
+
+На Raspberry Pi этот параметр обычно не нужен и требует дополнительного
+пакета `adafruit-extended-bus` (он входит только в `requirements-opi.txt`).
+
 Не подавайте питание сервоприводов от линии `5V` Raspberry Pi: используйте
 отдельный источник подходящей мощности и соедините его землю с GND Raspberry Pi.
 Перед работой необходимо откалибровать углы в `sorter/hardware.py`.
@@ -496,7 +511,9 @@ python app.py --hardware gpiozero
 
 ## Ярлыки на рабочем столе Raspberry Pi
 
-В каталоге `desktop` подготовлены два ярлыка:
+В каталоге [`desktop/rpi`](desktop/rpi) подготовлены два ярлыка для
+пользователя `umka` и скрипт запуска киоска. Для Orange Pi файлы находятся
+в [`desktop/opi`](desktop/opi).
 
 - `umka-start.desktop` запускает программу с I2C-драйвером `pca9685` и показывает журнал в терминале;
 - `umka-screen.desktop` запускает локальный helper, ждёт сервер и открывает страницу `http://localhost:3000` в Chromium во весь экран.
@@ -530,7 +547,7 @@ desktop_dir="$(sudo -H -u "$gui_user" xdg-user-dir DESKTOP)"
 echo "$desktop_dir"
 sudo install -d -o "$gui_user" -g "$gui_group" "$desktop_dir"
 sudo install -o "$gui_user" -g "$gui_group" -m 0755 \
-    ~/app/desktop/umka-screen.desktop "$desktop_dir/umka-screen.desktop"
+    ~/app/desktop/rpi/umka-screen.desktop "$desktop_dir/umka-screen.desktop"
 ```
 
 Ожидаемый путь обычно `/home/admin/Desktop/umka-screen.desktop`, но `xdg-user-dir` корректно учитывает язык и настройки рабочего стола. В графической сессии `admin` нажмите на ярлык правой кнопкой мыши и выберите **Allow Launching** («Разрешить запуск»). Ярлык дождётся ответа `/api/state` и откроет Chromium во весь экран.
@@ -539,6 +556,12 @@ sudo install -o "$gui_user" -g "$gui_group" -m 0755 \
 логотипа. Касания должны уложиться в четыре секунды. В окне показаны состояние
 камеры, модели и текущий режим работы; диагностика обновляется автоматически.
 Кнопка **Вернуться** закрывает отладочное окно.
+
+Вывод самого Chromium — сообщения о GPU, ANGLE, Vulkan и опросе камер — идёт
+не в терминал, а в файл `data/logs/kiosk.log` рядом с журналом UMKA. Файл
+переписывается при каждом запуске киоска; если каталог недоступен (например,
+киоск запущен пользователем `admin`, а `data/` принадлежит `umka`), вывод
+браузера отбрасывается. Ошибки самого запуска киоска печатаются как обычно.
 
 Для выхода из kiosk в этом же окне нажмите **Закрыть экран**. Закроется только
 Chromium, а `umka.service`, камера и сортировка продолжат работать. Закрытие
@@ -561,7 +584,7 @@ sudo pkill -TERM -u admin chromium
 ```bash
 desktop_dir="$(xdg-user-dir DESKTOP)"
 mkdir -p "$desktop_dir"
-cp ~/app/desktop/*.desktop "$desktop_dir/"
+cp ~/app/desktop/rpi/*.desktop "$desktop_dir/"
 chmod +x "$desktop_dir"/umka-*.desktop
 ```
 
@@ -580,7 +603,15 @@ ssh umka@<IP_RASPBERRY_PI>
 Найдите процесс программы:
 
 ```bash
-pgrep -a -u umka -f '/home/umka/app/[a]pp.py'
+pgrep -a -u umka -f '[a]pp\.py'
+```
+
+Шаблон без пути находит программу и при запуске ярлыком, и при ручном
+`python app.py` из каталога `~/app`. Если вывод пуст, а порт занят, посмотрите
+владельца порта:
+
+```bash
+ss -ltnp | grep :3000
 ```
 
 Первое число в строке — PID процесса. Подставьте его вместо `PID` в следующую команду:

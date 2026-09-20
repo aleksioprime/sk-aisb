@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Запустить UMKA
+Comment=Запустить распознавание и управление сервоприводами
+Exec=/home/orangepi/app/.venv/bin/python /home/orangepi/app/app.py --hardware pca9685
+Path=/home/orangepi/app
+Icon=utilities-terminal
+Terminal=true
+StartupNotify=false
+Categories=Utility;
