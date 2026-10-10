@@ -30,6 +30,10 @@ class AppConfig:
     stats_path: Path = BASE_DIR / "data" / "sort_stats.json"  # Общие счётчики и масса.
     events_path: Path = BASE_DIR / "data" / "events" / "events.jsonl"  # История операций.
     log_path: Path = BASE_DIR / "data" / "logs" / "umka.log"  # Журнал работы и ошибок.
+    calibration_path: Path = BASE_DIR / "data" / "servo_calibration.json"  # Углы со страницы настроек.
+    camera_controls_path: Path = BASE_DIR / "data" / "camera_controls.json"  # Яркость, контраст и т. п.
+    display_path: Path = BASE_DIR / "data" / "display.json"  # Подтверждение и время показа результата.
+    crop_path: Path = BASE_DIR / "data" / "crop.json"  # Область распознавания со страницы настроек.
     static_dir: Path = BASE_DIR / "web"  # HTML, CSS, JavaScript и картинки интерфейса.
 
     # USB-камера и параметры изображения для YOLO.
@@ -45,7 +49,14 @@ class AppConfig:
     clear_frames: int = 10  # Столько результатов без объекта разрешают следующий сброс.
     # Считаются обработанные кадры, а не секунды и не все кадры видеопотока.
 
-    # Отступы области площадки от границ исходного кадра, в пикселях.
+    # Отсев ложных детекций по эталону пустой площадки (снимается на /camera.html).
+    background_dir: Path = BASE_DIR / "data" / "empty_platform"  # Набор снимков пустой площадки.
+    # Одиночный эталон прошлых версий: при запуске переносится в background_dir.
+    background_path: Path = BASE_DIR / "data" / "empty_platform.png"
+    background_threshold: float = 18.0  # Минимальная средняя разница яркости в рамке, 0–255.
+
+    # Отступы области площадки от границ исходного кадра, в пикселях. Это значения
+    # по умолчанию: настроенные на странице настроек хранятся в crop_path.
     crop_top: int = 40  # Убрать сверху.
     crop_bottom: int = 85  # Убрать снизу.
     crop_left: int = 100  # Убрать слева.

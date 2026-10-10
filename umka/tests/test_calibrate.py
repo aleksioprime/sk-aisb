@@ -8,6 +8,13 @@ import calibrate
 
 
 class CalibrationTests(unittest.TestCase):
+    def setUp(self):
+        # Не читать настоящий data/servo_calibration.json: на плате в нём могут
+        # быть выключены моторы и другие углы, и это изменит общие настройки.
+        patcher = patch("calibrate.calibration.load")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def run_session(self, commands, hardware_args=None, failure=None):
         with patch("calibrate.create_hardware") as factory, \
                 patch("builtins.input", side_effect=commands), \

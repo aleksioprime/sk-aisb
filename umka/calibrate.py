@@ -6,8 +6,9 @@ from __future__ import annotations
 import argparse
 import logging
 
+from sorter import calibration, hardware as angles
 from sorter.config import AppConfig
-from sorter.hardware import ACTIONS, CENTER_ROTATE_ANGLE, CENTER_TILT_ANGLE, create_hardware
+from sorter.hardware import create_hardware
 
 
 def parse_args(argv=None) -> argparse.Namespace:
@@ -38,10 +39,11 @@ def main(argv=None) -> None:
     """Выполнять команды по одной и освобождать драйвер при выходе."""
     args = parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s")
+    calibration.load(AppConfig().calibration_path)
     print(f"Драйвер: {args.hardware}")
-    print(f"Центр: rotate={CENTER_ROTATE_ANGLE}°, tilt={CENTER_TILT_ANGLE}°")
-    for section, angles in ACTIONS.items():
-        print(f"{section}: rotate={angles['rotate']}°, tilt={angles['tilt']}°")
+    print(f"Центр: rotate={angles.CENTER_ROTATE_ANGLE}°, tilt={angles.CENTER_TILT_ANGLE}°")
+    for section, action in angles.ACTIONS.items():
+        print(f"{section}: rotate={action['rotate']}°, tilt={action['tilt']}°")
     print("При запуске механизм возвращается в центр.")
     hardware = create_hardware(args.hardware, 0, args.pca9685_address,
                                args.tilt_channel, args.rotate_channel,

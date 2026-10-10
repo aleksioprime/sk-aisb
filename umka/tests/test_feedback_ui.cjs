@@ -10,7 +10,7 @@ const source = readFileSync(join(__dirname, "../web/script.js"), "utf8");
 function element() {
   const classes = new Set();
   return {
-    textContent: "", disabled: false, style: {},
+    textContent: "", disabled: false, style: { setProperty() {} },
     classList: {
       add: (...names) => names.forEach((name) => classes.add(name)),
       remove: (...names) => names.forEach((name) => classes.delete(name)),
@@ -221,4 +221,32 @@ test("the previous emotion timer cannot interrupt a new event", async () => {
   assert.ok(ui.get("face-container").classList.contains("emotion-sad"));
   ui.advance(3000);
   assert.ok(ui.get("face-container").classList.contains("emotion-idle"));
+});
+
+test("without confirmation the result hides itself after resultSeconds", async () => {
+  const ui = setup();
+  const display = { confirm: false, resultSeconds: 3 };
+  await ui.poll(waste({ display }));
+  assert.ok(ui.get("waste-screen").classList.contains("active"));
+  assert.ok(ui.get("waste-screen").classList.contains("no-confirm"));
+  assert.ok(ui.get(".waste-page.active .result-timer-bar").classList.contains("running"));
+  // Повторный опрос того же события не перезапускает таймер.
+  ui.advance(2000);
+  await ui.poll(waste({ display, controllerState: "WAITING_FOR_REMOVAL" }));
+  assert.ok(ui.get("waste-screen").classList.contains("active"));
+  ui.advance(1000);
+  assert.ok(!ui.get("waste-screen").classList.contains("active"));
+  assert.ok(ui.get("idle-screen").classList.contains("active"));
+  assert.equal(ui.get("system-status").textContent, "Завершаю сортировку…");
+  await ui.poll(waste({ display, eventId: "second" }));
+  assert.ok(ui.get("waste-screen").classList.contains("active"));
+  assert.equal(ui.requests.filter((request) => request.options?.method === "POST").length, 0);
+});
+
+test("with confirmation the question stays until answered", async () => {
+  const ui = setup();
+  await ui.poll(waste({ display: { confirm: true, resultSeconds: 3 } }));
+  ui.advance(10000);
+  assert.ok(ui.get("waste-screen").classList.contains("active"));
+  assert.ok(!ui.get("waste-screen").classList.contains("no-confirm"));
 });

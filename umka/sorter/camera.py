@@ -1,9 +1,13 @@
-"""Получение свежих кадров с USB-камеры и обрезка рабочей области."""
+"""Получение свежих кадров с USB-камеры."""
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
+from pathlib import Path
+
+LOG = logging.getLogger(__name__)
 
 
 class UsbCamera:
@@ -13,8 +17,10 @@ class UsbCamera:
     занят вычислениями. Потребитель получает копию кадра с новым номером.
     """
 
-    def __init__(self, index: int, width: int, height: int):
+    def __init__(self, index: int, width: int, height: int, on_open=None):
+        """on_open(device) вызывается после каждого открытия камеры, в том числе повторного."""
         self.index = index
+        self.on_open = on_open
         self.width = width
         self.height = height
         self._condition = threading.Condition()
@@ -23,26 +29,66 @@ class UsbCamera:
         self._stopped = threading.Event()
         self._thread = None
         self._capture = None
+        self.device = f"/dev/video{index}"
         self.error: str | None = None
 
     def start(self) -> None:
         """Открыть V4L2-камеру и запустить фоновое чтение кадров."""
-        import cv2
-
-        self._capture = cv2.VideoCapture(self.index, cv2.CAP_V4L2)
-        if not self._capture.isOpened():
-            self._capture.release()
+        if not self._open():
             raise RuntimeError(f"Не удалось открыть USB-камеру /dev/video{self.index}")
-        self._capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
-        self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-        # Не все V4L2-драйверы учитывают эту настройку, но там, где учитывают,
-        # она дополнительно уменьшает задержку видеопотока.
-        self._capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         self._thread = threading.Thread(target=self._reader, name="camera-reader", daemon=True)
         self._thread.start()
 
+    def _candidates(self) -> list[str]:
+        """Устройства для открытия: сначала заданный индекс, затем любые USB-камеры.
+
+        После сброса USB камера часто получает другой номер /dev/videoN, поэтому
+        дополнительно перебираются первые узлы камер из /dev/v4l/by-id.
+        """
+        devices = [f"/dev/video{self.index}"]
+        for link in sorted(Path("/dev/v4l/by-id").glob("*-video-index0")):
+            device = str(link.resolve())
+            if device not in devices:
+                devices.append(device)
+        return devices
+
+    def _open(self) -> bool:
+        """Открыть первое работающее устройство камеры и настроить его."""
+        import cv2
+
+        for device in self._candidates():
+            capture = cv2.VideoCapture(device, cv2.CAP_V4L2)
+            if not capture.isOpened():
+                capture.release()
+                continue
+            capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.width)
+            capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+            # Не все V4L2-драйверы учитывают эту настройку, но там, где учитывают,
+            # она дополнительно уменьшает задержку видеопотока.
+            capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            self._capture = capture
+            self.device = device
+            if self.on_open is not None:
+                try:
+                    self.on_open(device)
+                except Exception:
+                    # Настройки изображения не должны мешать получать кадры.
+                    LOG.exception("Ошибка обработчика открытия камеры")
+            return True
+        return False
+
+    def _reopen(self) -> None:
+        """Закрыть потерянную камеру и пытаться открыть её заново до успеха."""
+        LOG.warning("Камера %s не отвечает, переподключение", self.device)
+        self._capture.release()
+        while not self._stopped.is_set():
+            if self._open():
+                LOG.info("Камера снова подключена: %s", self.device)
+                return
+            self._stopped.wait(2)
+
     def _reader(self) -> None:
-        """Фоновый цикл чтения; после десяти ошибок публикует диагностику."""
+        """Фоновый цикл чтения; после десяти ошибок переподключает камеру."""
         failures = 0
         while not self._stopped.is_set():
             ok, frame = self._capture.read()
@@ -50,6 +96,8 @@ class UsbCamera:
                 failures += 1
                 if failures >= 10:
                     self.error = "Камера не возвращает кадры"
+                    self._reopen()
+                    failures = 0
                 time.sleep(0.05)
                 continue
             failures = 0
@@ -82,13 +130,3 @@ class UsbCamera:
         if self._capture:
             self._capture.release()
 
-
-def crop_frame(frame, config):
-    """Обрезать кадр до площадки, не допуская пустого массива."""
-    height, width = frame.shape[:2]
-    top = max(0, min(config.crop_top, height))
-    bottom = max(0, min(config.crop_bottom, height - top))
-    left = max(0, min(config.crop_left, width))
-    right = max(0, min(config.crop_right, width - left))
-    cropped = frame[top:height - bottom, left:width - right]
-    return cropped if cropped.size else frame

@@ -39,6 +39,10 @@ let isRandomAnimationActive = false;
 let isTouching = false;
 let avoidTimeout = null;
 let exitTapTimes = [];
+// Без подтверждения результат показывается resultSeconds, затем экран гаснет.
+let resultEventId = null;
+let resultTimer = null;
+let dismissedEventId = null;
 
 // Пул случайных idle-анимаций
 const idleAnimations = [
@@ -93,6 +97,11 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     { passive: false },
   );
+
+  // kiosk_token нужен кнопке «Закрыть экран», поэтому служебные ссылки его сохраняют.
+  for (const link of document.querySelectorAll("[data-keep-query]")) {
+    link.href = link.getAttribute("href") + window.location.search;
+  }
 
   exitCancel.addEventListener("click", hideExitDialog);
   exitConfirm.addEventListener("click", requestKioskExit);
@@ -372,7 +381,11 @@ function updateUI(data) {
   const answer = data.lastAnswer ||
     (acceptedFeedback && acceptedFeedback.eventId === data.eventId
       ? acceptedFeedback.answer : null);
-  const finishing = data.state === "waste" && Boolean(answer);
+  // Подтверждение выключено в настройках: кнопок нет, результат гаснет сам.
+  const autoMode = data.display?.confirm === false;
+  wasteScreen.classList.toggle("no-confirm", autoMode);
+  const autoDone = autoMode && data.state === "waste" && dismissedEventId === data.eventId;
+  const finishing = data.state === "waste" && (Boolean(answer) || autoDone);
   statCount.textContent = data.totalCount ?? 0;
   statWeight.textContent = data.totalWeight ?? 0;
   const cameraText = data.camera?.ok
@@ -403,7 +416,7 @@ function updateUI(data) {
     // Меняем только экран: сервер продолжает ждать завершения механики
     // и подтверждённого освобождения площадки перед следующим сбросом.
     showIdle(data);
-    showFeedbackEmotion(answer, data.eventId);
+    showFeedbackEmotion(answer || "yes", data.eventId);
     if (idleAnimationTimer) clearTimeout(idleAnimationTimer);
   } else if (data.state === "idle") {
     showIdle(data);
@@ -417,8 +430,28 @@ function updateUI(data) {
     feedbackEmotionTimer = null;
     showWaste(data);
     setEmotion("surprised");
+    if (autoMode) startResultTimer(data);
     if (idleAnimationTimer) clearTimeout(idleAnimationTimer);
   }
+}
+
+// Запустить полосу и таймер показа результата один раз для каждого события.
+function startResultTimer(data) {
+  if (resultEventId === data.eventId) return;
+  resultEventId = data.eventId;
+  const seconds = data.display?.resultSeconds || 5;
+  const bar = document.querySelector(".waste-page.active .result-timer-bar");
+  if (bar) {
+    bar.classList.remove("running");
+    bar.style.setProperty("--result-seconds", `${seconds}s`);
+    void bar.offsetWidth; // Перезапуск CSS-анимации для нового события.
+    bar.classList.add("running");
+  }
+  clearTimeout(resultTimer);
+  resultTimer = setTimeout(() => {
+    dismissedEventId = data.eventId;
+    if (currentState) updateUI(currentState);
+  }, seconds * 1000);
 }
 
 function showIdle(data) {

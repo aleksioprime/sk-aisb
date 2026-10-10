@@ -8,7 +8,7 @@ import mimetypes
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qsl, unquote, urlsplit
 
 
 LOG = logging.getLogger(__name__)
@@ -17,12 +17,17 @@ LOG = logging.getLogger(__name__)
 class WebServer:
     """Раздавать страницу UMKA и минимальный JSON API без Node.js."""
 
-    def __init__(self, host: str, port: int, static_dir: Path, state, feedback_handler):
+    def __init__(self, host: str, port: int, static_dir: Path, state, feedback_handler, preview=None,
+                 routes=None):
         self.host = host
         self.port = port
         self.static_dir = static_dir.resolve()
         self.state = state
         self.feedback_handler = feedback_handler
+        self.preview = preview
+        # (метод, путь) → функция(тело POST или параметры GET) → (HTTP-статус, ответ).
+        # Ответ — словарь для JSON или bytes для JPEG-изображения.
+        self.routes = routes or {}
         self._server = None
         self._thread = None
 
@@ -35,7 +40,8 @@ class WebServer:
 
             def do_GET(self):
                 """Вернуть состояние, диагностику или статический файл."""
-                path = urlsplit(self.path).path
+                url = urlsplit(self.path)
+                path = url.path
                 if path == "/api/state":
                     return self._json(200, owner.state.snapshot())
                 if path == "/api/health":
@@ -48,20 +54,29 @@ class WebServer:
                         "hardware": snapshot["hardware"],
                         "error": snapshot["error"],
                     })
+                if path == "/api/camera.mjpg" and owner.preview is not None:
+                    return self._mjpeg()
+                if ("GET", path) in owner.routes:
+                    # GET-обработчик получает параметры строки запроса как словарь.
+                    return self._route("GET", path, dict(parse_qsl(url.query)))
                 return self._static(path)
 
             def do_POST(self):
-                """Принять подтверждение пользователя для события сортировки."""
+                """Принять подтверждение пользователя или команду маршрута из routes."""
                 path = urlsplit(self.path).path
-                if path != "/api/feedback" and path != "/api/answer":
+                if path != "/api/feedback" and path != "/api/answer" and ("POST", path) not in owner.routes:
                     return self._json(404, {"error": "Not found"})
                 try:
                     length = int(self.headers.get("Content-Length", "0"))
-                    # API принимает два коротких поля; лимит защищает память от
+                    # API принимает короткие JSON-объекты; лимит защищает память от
                     # случайно или намеренно огромного тела запроса.
                     if length > 4096:
                         return self._json(413, {"error": "Request too large"})
                     body = json.loads(self.rfile.read(length) or b"{}")
+                    if not isinstance(body, dict):
+                        return self._json(400, {"error": "Invalid JSON"})
+                    if ("POST", path) in owner.routes:
+                        return self._route("POST", path, body)
                     answer = body.get("answer")
                     if answer not in {"yes", "no"}:
                         return self._json(400, {"error": "answer must be yes or no"})
@@ -94,6 +109,54 @@ class WebServer:
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
                 self.wfile.write(content)
+
+            def _route(self, method: str, path: str, body: dict):
+                """Вызвать обработчик маршрута; ошибки данных вернуть как 400."""
+                try:
+                    status, payload = owner.routes[(method, path)](body)
+                except (ValueError, KeyError, TypeError) as exc:
+                    return self._json(400, {"error": str(exc)})
+                except RuntimeError as exc:
+                    # Устройство недоступно или отказало: ошибка не в запросе.
+                    return self._json(503, {"error": str(exc)})
+                except Exception as exc:
+                    LOG.exception("Ошибка обработчика %s %s", method, path)
+                    return self._json(500, {"error": str(exc)})
+                if isinstance(payload, bytes):
+                    # Двоичный ответ обработчиков — JPEG-миниатюра.
+                    self.send_response(status)
+                    self.send_header("Content-Type", "image/jpeg")
+                    self.send_header("Content-Length", str(len(payload)))
+                    self.send_header("Cache-Control", "max-age=3600")
+                    self.end_headers()
+                    self.wfile.write(payload)
+                    return
+                return self._json(status, payload)
+
+            def _mjpeg(self):
+                """Отдавать кадры камеры потоком multipart, пока клиент подключён."""
+                boundary = "umkaframe"
+                self.send_response(200)
+                self.send_header("Content-Type", f"multipart/x-mixed-replace; boundary={boundary}")
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                owner.preview.add_viewer()
+                sequence = 0
+                try:
+                    while True:
+                        sequence, jpeg = owner.preview.next_jpeg(sequence)
+                        if jpeg is None:
+                            continue
+                        self.wfile.write(
+                            f"--{boundary}\r\nContent-Type: image/jpeg\r\n"
+                            f"Content-Length: {len(jpeg)}\r\n\r\n".encode("ascii")
+                        )
+                        self.wfile.write(jpeg)
+                        self.wfile.write(b"\r\n")
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
+                finally:
+                    owner.preview.remove_viewer()
 
             def _json(self, status: int, payload: dict):
                 """Отправить JSON-ответ в UTF-8."""

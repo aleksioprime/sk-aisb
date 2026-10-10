@@ -163,7 +163,8 @@ class SharedCalibrationTests(unittest.TestCase):
     @patch("sorter.hardware.time.sleep")
     def test_both_drivers_use_shared_angles_for_drop_and_return(self, _sleep):
         # Подменяем калибровку, чтобы обнаружить углы, зашитые в одном из драйверов.
-        with patch("sorter.hardware.CENTER_TILT_ANGLE", 82), \
+        with patch("sorter.hardware.MOTORS_ENABLED", {"tilt": True, "rotate": True}), \
+                patch("sorter.hardware.CENTER_TILT_ANGLE", 82), \
                 patch("sorter.hardware.CENTER_ROTATE_ANGLE", 47), \
                 patch("sorter.hardware.ACTIONS", {
                     "section_1": {"rotate": 155, "tilt": 65},
@@ -179,6 +180,20 @@ class SharedCalibrationTests(unittest.TestCase):
                         call(driver.rotate, 155), call(driver.tilt, 65),
                         call(driver.tilt, 82), call(driver.rotate, 47),
                     ])
+
+
+    @patch("sorter.hardware.time.sleep")
+    def test_disabled_motor_gets_no_commands(self, _sleep):
+        with patch("sorter.hardware.MOTORS_ENABLED", {"tilt": False, "rotate": True}), \
+                patch("sorter.hardware.CENTER_TILT_ANGLE", 82), \
+                patch("sorter.hardware.CENTER_ROTATE_ANGLE", 47), \
+                patch("sorter.hardware.ACTIONS", {"section_1": {"rotate": 155, "tilt": 65}}):
+            driver = object.__new__(Pca9685Hardware)
+            driver.tilt = object()
+            driver.rotate = object()
+            driver._move = Mock()
+            driver.sort_to("section_1")
+            self.assertEqual(driver._move.call_args_list, [call(driver.rotate, 155), call(driver.rotate, 47)])
 
 
 if __name__ == "__main__":

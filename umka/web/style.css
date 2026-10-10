@@ -1239,3 +1239,68 @@ body {
   gap: 20px;
   flex-wrap: wrap;
 }
+
+/* ---------- Служебные страницы в отладочном окне ---------- */
+.service-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.btn-service {
+  padding: 14px 32px;
+  font-size: 1.4rem;
+  border: 2px solid var(--accent);
+  background: rgba(45, 212, 191, 0.12);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.btn-service:hover {
+  background: rgba(45, 212, 191, 0.25);
+  box-shadow: 0 0 25px rgba(45, 212, 191, 0.4);
+}
+
+/* ---------- Показ результата без подтверждения ---------- */
+.waste-auto,
+.result-timer {
+  display: none;
+}
+
+#waste-screen.no-confirm .buttons,
+#waste-screen.no-confirm .waste-question:not(.waste-auto) {
+  display: none;
+}
+
+#waste-screen.no-confirm .waste-auto {
+  display: block;
+}
+
+#waste-screen.no-confirm .result-timer {
+  display: block;
+  width: min(480px, 70vw);
+  height: 12px;
+  margin-top: 32px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.result-timer-bar {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  background: var(--accent);
+  transform-origin: left center;
+}
+
+.result-timer-bar.running {
+  animation: result-countdown var(--result-seconds, 5s) linear forwards;
+}
+
+@keyframes result-countdown {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}

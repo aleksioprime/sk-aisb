@@ -14,6 +14,8 @@ LOG = logging.getLogger(__name__)
 # Общая калибровка для GPIO, PCA9685 и calibrate.py.
 # Здесь задаются абсолютные углы сервоприводов в градусах (0–180), а не смещения.
 # После редактирования перезапустите UMKA или calibrate.py.
+# Если углы сохранены на странице настроек, они хранятся в data/servo_calibration.json
+# и при запуске заменяют значения ниже (см. sorter/calibration.py).
 CENTER_TILT_ANGLE = 97  # Нейтральный наклон площадки перед следующим поворотом.
 CENTER_ROTATE_ANGLE = 80  # Исходное положение поворота распределителя.
 
@@ -28,6 +30,10 @@ ACTIONS = {
     "section_3": {"rotate": 160, "tilt": 150},
     "section_4": {"rotate": 20, "tilt": 145},
 }
+
+# Выключенный мотор обесточивается и не получает команд — например, неисправный.
+# Переключается на странице настроек и хранится вместе с калибровкой.
+MOTORS_ENABLED = {"tilt": True, "rotate": True}
 
 
 # Шина /dev/i2c-5 — контакты 3 (SDA) и 5 (SCL) 26-контактного разъёма Orange Pi 5B.
@@ -113,18 +119,40 @@ class ConsoleHardware:
         """Вывести сообщение об имитации возврата механизма в центр."""
         LOG.info("[ИМИТАЦИЯ] Центрирование механизма")
 
+    def set_angles(self, rotate: float | None = None, tilt: float | None = None) -> None:
+        """Вывести сообщение об имитации установки углов."""
+        LOG.info("[ИМИТАЦИЯ] Углы: rotate=%s, tilt=%s", rotate, tilt)
+
     def sort_to(self, section: str) -> None:
         """Имитировать сортировку в секцию с небольшой задержкой."""
         LOG.info("[ИМИТАЦИЯ] Сортировка → %s", section)
         time.sleep(self.delay)
         LOG.info("[ИМИТАЦИЯ] Сортировка завершена → %s", section)
 
+    def release(self, motor: str) -> None:
+        """Вывести сообщение об имитации отключения мотора."""
+        LOG.info("[ИМИТАЦИЯ] Мотор %s отключён", motor)
+
     def close(self) -> None:
         """Завершить драйвер; консольный режим не содержит ресурсов."""
         pass
 
 
-class GpioZeroHardware:
+class _ServoSwitch:
+    """Пропускать команды выключенным моторам и снимать с них сигнал."""
+
+    def _drive(self, motor: str, angle: float) -> None:
+        """Поставить мотор tilt или rotate в угол, если он не выключен."""
+        if MOTORS_ENABLED.get(motor, True):
+            self._move(getattr(self, motor), angle)
+
+    def release(self, motor: str) -> None:
+        """Снять сигнал с мотора: он перестаёт удерживать положение и греться."""
+        self._release(getattr(self, motor))
+        LOG.info("Мотор %s отключён", motor)
+
+
+class GpioZeroHardware(_ServoSwitch):
     """Управлять двумя сервоприводами через gpiozero и backend lgpio.
 
     GPIO 12 наклоняет площадку, GPIO 13 поворачивает распределитель. Это номера
@@ -163,16 +191,28 @@ class GpioZeroHardware:
 
     def center(self) -> None:
         """Сначала восстановить наклон площадки, затем вернуть поворот в центр."""
-        self._move(self.tilt, CENTER_TILT_ANGLE)
-        self._move(self.rotate, CENTER_ROTATE_ANGLE)
+        self._drive("tilt", CENTER_TILT_ANGLE)
+        self._drive("rotate", CENTER_ROTATE_ANGLE)
+
+    def set_angles(self, rotate: float | None = None, tilt: float | None = None) -> None:
+        """Сначала повернуть, затем наклонить; None оставляет мотор на месте."""
+        if rotate is not None:
+            self._drive("rotate", rotate)
+        if tilt is not None:
+            self._drive("tilt", tilt)
 
     def sort_to(self, section: str) -> None:
         """Повернуть распределитель, сбросить предмет и вернуться в центр."""
         action = ACTIONS[section]
-        self._move(self.rotate, action["rotate"])
-        self._move(self.tilt, action["tilt"])
+        self._drive("rotate", action["rotate"])
+        self._drive("tilt", action["tilt"])
         time.sleep(0.5)  # Дополнительная выдержка для падения предмета, секунды.
         self.center()
+
+    @staticmethod
+    def _release(servo) -> None:
+        """Перестать подавать импульсы на сервопривод."""
+        servo.detach()
 
     def close(self) -> None:
         """Освободить GPIO-ресурсы обоих сервоприводов."""
@@ -180,7 +220,7 @@ class GpioZeroHardware:
         self.rotate.close()
 
 
-class Pca9685Hardware:
+class Pca9685Hardware(_ServoSwitch):
     """Управлять сервоприводами через I2C-драйвер PCA9685.
 
     Канал 1 наклоняет площадку, канал 0 поворачивает распределитель. Углы секций
@@ -273,16 +313,28 @@ class Pca9685Hardware:
 
     def center(self) -> None:
         """Сначала восстановить наклон площадки, затем вернуть поворот в центр."""
-        self._move(self.tilt, CENTER_TILT_ANGLE)
-        self._move(self.rotate, CENTER_ROTATE_ANGLE)
+        self._drive("tilt", CENTER_TILT_ANGLE)
+        self._drive("rotate", CENTER_ROTATE_ANGLE)
+
+    def set_angles(self, rotate: float | None = None, tilt: float | None = None) -> None:
+        """Сначала повернуть, затем наклонить; None оставляет мотор на месте."""
+        if rotate is not None:
+            self._drive("rotate", rotate)
+        if tilt is not None:
+            self._drive("tilt", tilt)
 
     def sort_to(self, section: str) -> None:
         """Повернуть распределитель, сбросить предмет и вернуться в центр."""
         action = ACTIONS[section]
-        self._move(self.rotate, action["rotate"])
-        self._move(self.tilt, action["tilt"])
+        self._drive("rotate", action["rotate"])
+        self._drive("tilt", action["tilt"])
         time.sleep(0.5)  # Дополнительная выдержка для падения предмета, секунды.
         self.center()
+
+    @staticmethod
+    def _release(servo) -> None:
+        """Отключить PWM канала: это освобождение мотора, а не команда на угол 0°."""
+        servo.angle = None
 
     def close(self) -> None:
         """Отключить PWM на обоих каналах и освободить I2C-ресурсы."""

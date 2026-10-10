@@ -79,11 +79,14 @@
             <h1 class="waste-title">Обнаружен мусор</h1>
             <p class="waste-type">Бумага</p>
             <p class="waste-question">Подтвердите тип отхода</p>
+            <p class="waste-question waste-auto">Отправляю в нужную секцию</p>
           </div>
           <div class="buttons">
             <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
             <button class="btn btn-no" data-answer="no"><span class="btn-icon">✕</span> Нет</button>
           </div>
+          <!-- Без подтверждения: полоса показывает, когда сообщение погаснет. -->
+          <div class="result-timer"><div class="result-timer-bar"></div></div>
         </div>
       </div>
 
@@ -96,11 +99,14 @@
             <h1 class="waste-title">Обнаружен мусор</h1>
             <p class="waste-type">Пластик/Алюминий</p>
             <p class="waste-question">Подтвердите тип отхода</p>
+            <p class="waste-question waste-auto">Отправляю в нужную секцию</p>
           </div>
           <div class="buttons">
             <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
             <button class="btn btn-no" data-answer="no"><span class="btn-icon">✕</span> Нет</button>
           </div>
+          <!-- Без подтверждения: полоса показывает, когда сообщение погаснет. -->
+          <div class="result-timer"><div class="result-timer-bar"></div></div>
         </div>
       </div>
 
@@ -113,11 +119,14 @@
             <h1 class="waste-title">Обнаружен мусор</h1>
             <p class="waste-type">Органика</p>
             <p class="waste-question">Подтвердите тип отхода</p>
+            <p class="waste-question waste-auto">Отправляю в нужную секцию</p>
           </div>
           <div class="buttons">
             <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
             <button class="btn btn-no" data-answer="no"><span class="btn-icon">✕</span> Нет</button>
           </div>
+          <!-- Без подтверждения: полоса показывает, когда сообщение погаснет. -->
+          <div class="result-timer"><div class="result-timer-bar"></div></div>
         </div>
       </div>
 
@@ -130,11 +139,14 @@
             <h1 class="waste-title">Обнаружен мусор</h1>
             <p class="waste-type">Несортируемые отходы</p>
             <p class="waste-question">Подтвердите тип отхода</p>
+            <p class="waste-question waste-auto">Отправляю в нужную секцию</p>
           </div>
           <div class="buttons">
             <button class="btn btn-yes" data-answer="yes"><span class="btn-icon">✓</span> Да</button>
             <button class="btn btn-no" data-answer="no"><span class="btn-icon">✕</span> Нет</button>
           </div>
+          <!-- Без подтверждения: полоса показывает, когда сообщение погаснет. -->
+          <div class="result-timer"><div class="result-timer-bar"></div></div>
         </div>
       </div>
     </div>
@@ -149,6 +161,11 @@
       <div class="exit-dialog">
         <h2 id="exit-title">Отладочное окно UMKA</h2>
         <p class="diagnostics" id="diagnostics">Камера: проверка · Модель: проверка</p>
+        <!-- Служебные страницы: просмотр камеры и настройки механизма. -->
+        <div class="service-actions">
+          <a class="btn btn-service" href="/camera.html" data-keep-query>Демонстрация</a>
+          <a class="btn btn-service" href="/settings.html" data-keep-query>Настройки</a>
+        </div>
         <p id="exit-message">При закрытии экрана программа сортировки продолжит работать в фоне.</p>
         <div class="exit-actions">
           <button class="btn btn-no" id="exit-cancel" type="button">Вернуться</button>
