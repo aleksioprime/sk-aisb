@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Collect Snapshot</title>
+    <style>
+        body {
+            font-family: sans-serif;
+        }
+
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+    </style>
+
+    <script>
+        const SNAPSHOT_DEBOUNCE_MS = 600;
+        let lastShotAt = 0;
+        let toastTimer = null;
+
+        function showToast(text) {
+            const toast = document.getElementById('toast');
+            toast.textContent = text;
+            toast.classList.add('show');
+
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 1200);
+        }
+
+        function takeSnapshot() {
+            fetch('/snapshot')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.filename) {
+                        showToast('Saved: ' + data.filename);
+                    } else {
+                        showToast('Failed to save snapshot');
+                    }
+                })
+                .catch(() => showToast('Error while saving snapshot'));
+        }
+
+        function takeSnapshotDebounced() {
+            const now = Date.now();
+            if (now - lastShotAt < SNAPSHOT_DEBOUNCE_MS) {
+                return;
+            }
+            lastShotAt = now;
+            takeSnapshot();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                takeSnapshotDebounced();
+            }
+        });
+    </script>
+
+</head>
+
+<body>
+    <h1>Collect Snapshot</h1>
+
+    <img src="/stream.mjpg" width="640" height="480" />
+    <br><br>
+
+    <button onclick="takeSnapshotDebounced()">Take Snapshot</button>
+
+    <div id="toast"></div>
+</body>
+
+</html>

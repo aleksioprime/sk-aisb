@@ -1,0 +1,50 @@
+# Мониторинг сети UMKA: устройства → MQTT → worker → PostgreSQL → backend (API).
+x-app: &app
+  env_file: .env
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16
+    <<: *app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    <<: *app
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    <<: *app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    <<: *app
+    ports:
+      - "8300:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  mosquitto_data:

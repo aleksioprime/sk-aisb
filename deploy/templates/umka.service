@@ -1,0 +1,19 @@
+# Служба UMKA. @APP_DIR@ и @USER@ подставляет deploy/setup_device.sh.
+# Параметры запуска (драйвер, каналы моторов, камера) — в @APP_DIR@/umka.conf.
+[Unit]
+Description=UMKA smart waste sorter
+After=network.target
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@APP_DIR@
+ExecStart=@APP_DIR@/.venv/bin/python @APP_DIR@/app.py
+Restart=on-failure
+RestartSec=3
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

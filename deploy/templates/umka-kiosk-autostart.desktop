@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=UMKA kiosk
+Comment=Открыть экран UMKA при входе в рабочий стол
+Exec=/usr/bin/python3 @APP_DIR@/kiosk_launcher.py
+Terminal=false
+X-GNOME-Autostart-enabled=true

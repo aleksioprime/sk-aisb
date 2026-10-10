@@ -1,0 +1,22 @@
+.DS_Store
+__pycache__
+*.pyc
+*.log
+
+# Данные и настройки конкретного устройства: создаются UMKA и установщиком.
+app/.venv/
+app/umka.conf
+app/data/
+app/.deploy/
+
+# Обучение модели: большие наборы данных и результаты не хранятся в git.
+artifacts/
+runs/
+dataset/
+datasets/
+snapshots/
+
+calibration_image_sample_data_20x128x128x3_float32.npy
+
+# Пароли стенда мониторинга.
+web/.env

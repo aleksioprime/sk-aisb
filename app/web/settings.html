@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>УМКА — настройки</title>
+  <link rel="stylesheet" href="service.css">
+</head>
+
+<body>
+  <header>
+    <h1>Настройки</h1>
+    <nav class="tabs" id="tabs">
+      <button data-tab="display">Экран</button>
+      <button data-tab="motors">Моторы</button>
+      <button data-tab="center">Центр</button>
+      <button data-tab="sections">Секции</button>
+      <button data-tab="camera">Камера</button>
+      <button data-tab="crop">Область распознавания</button>
+      <button data-tab="empty">Пустая площадка</button>
+      <button data-tab="dataset">Датасет</button>
+    </nav>
+    <a class="nav" data-keep-query href="/camera.html">Демонстрация</a>
+    <a class="nav" id="exit" data-keep-query href="/">Готово</a>
+  </header>
+  <div class="banner" id="banner">Пока открыты настройки, сортировка приостановлена. Изменение угла сразу двигает мотор.</div>
+  <main>
+    <section class="panel" id="panel-display"></section>
+    <section class="panel" id="panel-motors"></section>
+    <section class="panel" id="panel-center"></section>
+    <section class="panel" id="panel-sections"></section>
+    <section class="panel" id="panel-camera"></section>
+    <section class="panel" id="panel-crop"></section>
+    <section class="panel" id="panel-empty"></section>
+    <section class="panel" id="panel-dataset"></section>
+  </main>
+  <footer>
+    <div id="status">Загрузка…</div>
+    <button id="revert">Вернуть сохранённое</button>
+    <button class="primary" id="save">Сохранить углы</button>
+  </footer>
+
+  <script>
+    const CLASS_NAMES = {
+      paper: "бумага", plastic: "пластик", organic: "органика", non_recyclable: "несортируемые",
+    };
+    const MOTOR_NAMES = { rotate: "Поворот", tilt: "Наклон" };
+    const banner = document.getElementById("banner");
+    const statusLine = document.getElementById("status");
+    const panels = {
+      display: document.getElementById("panel-display"),
+      motors: document.getElementById("panel-motors"),
+      center: document.getElementById("panel-center"),
+      sections: document.getElementById("panel-sections"),
+      camera: document.getElementById("panel-camera"),
+      crop: document.getElementById("panel-crop"),
+      empty: document.getElementById("panel-empty"),
+      dataset: document.getElementById("panel-dataset"),
+    };
+    let saved = null;
+    let current = null;
+    let busy = false;
+
+    for (const link of document.querySelectorAll("[data-keep-query]")) {
+      link.href = link.getAttribute("href") + window.location.search;
+    }
+
+    // ---------- Вкладки ----------
+    // Видео подключается только на видимой вкладке, чтобы плата не кодировала
+    // кадры для скрытых окон.
+    function showTab(name) {
+      if (!panels[name]) name = "display";
+      for (const [key, panel] of Object.entries(panels)) {
+        const active = key === name;
+        panel.classList.toggle("active", active);
+        panel.querySelectorAll("img.preview").forEach((img) => {
+          img.src = active ? "/api/camera.mjpg" : "";
+        });
+      }
+      document.querySelectorAll("#tabs button").forEach((button) => {
+        button.classList.toggle("active", button.dataset.tab === name);
+      });
+      try { localStorage.setItem("umka-settings-tab", name); } catch (error) { /* не обязательно */ }
+      if (name === "empty") refreshEmpty();
+      if (name === "dataset") refreshDataset();
+    }
+    document.querySelectorAll("#tabs button").forEach((button) => {
+      button.addEventListener("click", () => showTab(button.dataset.tab));
+    });
+    function savedTab() {
+      try { return localStorage.getItem("umka-settings-tab") || "display"; } catch (error) { return "display"; }
+    }
+
+    // ---------- Связь с UMKA ----------
+    async function api(path, body) {
+      const response = await fetch(path, {
+        method: body === undefined ? "GET" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+      return payload;
+    }
+
+    function showError(error) {
+      banner.textContent = `Ошибка: ${error.message}`;
+      banner.classList.add("error");
+    }
+
+    function setMaintenance(active) {
+      return api("/api/calibration/mode", { active });
+    }
+
+    function updateStatus(text) {
+      const dirty = JSON.stringify(current) !== JSON.stringify(saved);
+      statusLine.textContent = text || (dirty ? "Есть несохранённые изменения углов" : "Все изменения сохранены");
+      statusLine.classList.toggle("dirty", dirty);
+    }
+
+    // Моторы двигаются только после паузы в изменениях, чтобы ползунок не
+    // отправлял десятки команд подряд.
+    const pending = {};
+    function scheduleMove(key, angles) {
+      clearTimeout(pending[key]);
+      pending[key] = setTimeout(() => run(() => api("/api/calibration/move", angles)), 300);
+    }
+
+    async function run(action, message) {
+      if (busy) return;
+      busy = true;
+      document.querySelectorAll("main button, footer button").forEach((button) => { button.disabled = true; });
+      if (message) updateStatus(message);
+      try {
+        await action();
+        banner.classList.remove("error");
+      } catch (error) {
+        showError(error);
+      } finally {
+        busy = false;
+        document.querySelectorAll("main button, footer button").forEach((button) => { button.disabled = false; });
+        updateStatus();
+      }
+    }
+
+    // ---------- Элементы управления ----------
+    // Ползунок с кнопками шагов по бокам: target[key] меняется в пределах min–max.
+    function sliderRow(label, target, key, { min = 0, max, unit, steps, onChange }) {
+      const row = document.createElement("div");
+      row.className = "row";
+      const button = (step) => `<button data-step="${step}">${step > 0 ? "+" : "−"}${Math.abs(step)}</button>`;
+      const minus = steps.slice().reverse().map((step) => button(-step)).join("");
+      const plus = steps.map((step) => button(step)).join("");
+      row.innerHTML = `
+        <label><span>${label}</span> <b></b></label>
+        <div class="control">${minus}<input type="range" min="${min}" max="${max}" step="1">${plus}</div>`;
+      const value = row.querySelector("b");
+      const slider = row.querySelector("input");
+      const render = () => { value.textContent = `${target[key]}${unit}`; slider.value = target[key]; };
+      const set = (number) => {
+        target[key] = Math.max(min, Math.min(max, number));
+        render();
+        onChange(target[key]);
+      };
+      slider.addEventListener("input", () => set(Number(slider.value)));
+      row.querySelectorAll("[data-step]").forEach((item) => {
+        item.addEventListener("click", () => set(target[key] + Number(item.dataset.step)));
+      });
+      row.render = render;
+      render();
+      return row;
+    }
+
+    function angleRow(label, target, key, onChange) {
+      return sliderRow(label, target, key, {
+        max: 180, unit: "°", steps: [1, 5],
+        onChange: (angle) => { updateStatus(); onChange(angle); },
+      });
+    }
+
+    function card(title, hint) {
+      const element = document.createElement("div");
+      element.className = "card";
+      element.innerHTML = `<h2>${title}</h2>${hint ? `<p class="hint">${hint}</p>` : ""}`;
+      return element;
+    }
+
+    function previewImage() {
+      const img = document.createElement("img");
+      img.className = "preview";
+      img.alt = "Камера UMKA";
+      return img;
+    }
+
+    // ---------- Вкладка «Экран» ----------
+    // Сохраняется сразу; главный экран получает настройки с ближайшим опросом.
+    let displayTimer = null;
+    function renderDisplay(values) {
+      const element = card("Главный экран", "Как показывать результат распознавания посетителям.");
+      const row = document.createElement("div");
+      row.className = "motor";
+      row.innerHTML = `<span>Подтверждение распознавания<small>${values.confirm
+        ? "экран спрашивает «Да / Нет», ответ идёт в статистику"
+        : "экран только показывает, что распознано, и сам гаснет"}</small></span>
+        <button class="${values.confirm ? "on" : "off"}">${values.confirm ? "Включено" : "Выключено"}</button>`;
+      row.querySelector("button").addEventListener("click", async () => {
+        try {
+          renderDisplay(await api("/api/display", { confirm: !values.confirm }));
+        } catch (error) { showError(error); }
+      });
+      const seconds = { value: values.resultSeconds };
+      const status = document.createElement("p");
+      status.className = "hint";
+      status.textContent = values.confirm
+        ? "Время показа действует, когда подтверждение выключено."
+        : "Под результатом идёт полоса: когда она закончится, экран вернётся в ожидание.";
+      const slider = sliderRow("Время показа результата без подтверждения", seconds, "value", {
+        min: 2, max: 30, unit: " с", steps: [1],
+        onChange: (value) => {
+          clearTimeout(displayTimer);
+          displayTimer = setTimeout(async () => {
+            try {
+              await api("/api/display", { resultSeconds: value });
+              status.textContent = `Сохранено: результат показывается ${value} с`;
+            } catch (error) { showError(error); }
+          }, 400);
+        },
+      });
+      element.append(row, slider, status);
+      panels.display.replaceChildren(element);
+    }
+
+    // ---------- Вкладка «Моторы» ----------
+    function renderMotors() {
+      const element = card("Моторы", "Выключенный мотор сразу обесточивается и не получает команд ни при " +
+        "сортировке, ни отсюда. Отпускаемый в центре мотор после возврата в покой обесточивается: не " +
+        "дрожит и не греется, а при следующем сбросе снова получает сигнал. Выбор сохраняется сразу.");
+      const send = (changes, message) => run(async () => {
+        const result = await api("/api/calibration/motor", changes);
+        saved.enabled = result.enabled;
+        saved.release = result.release;
+        current.enabled = { ...result.enabled };
+        current.release = { ...result.release };
+        renderMotors();
+      }, message);
+      for (const motor of ["rotate", "tilt"]) {
+        const row = document.createElement("div");
+        row.className = "motor";
+        const enabled = saved.enabled[motor];
+        const release = saved.release[motor];
+        const state = !enabled ? "выключен — сигнал снят"
+          : release ? "работает, в центре отпускается" : "работает, в центре удерживается";
+        row.innerHTML = `<span>${MOTOR_NAMES[motor]}<small>${state}</small></span>
+          <span class="actions">
+            ${enabled ? `<button data-act="release" class="${release ? "on" : "off"}"
+              title="Нажмите, чтобы ${release ? "мотор держал положение в центре" : "мотор отпускался в центре"}">
+              Отпускать в центре: ${release ? "да" : "нет"}</button>` : ""}
+            <button data-act="enabled" class="${enabled ? "on" : "off"}">${enabled ? "Включён" : "Выключен"}</button>
+          </span>`;
+        row.querySelector("[data-act=enabled]").addEventListener("click", () => {
+          const next = !saved.enabled[motor];
+          if (!next && !confirm(`Выключить мотор «${MOTOR_NAMES[motor]}»?`)) return;
+          send({ motor, enabled: next }, "Переключение мотора…");
+        });
+        row.querySelector("[data-act=release]")?.addEventListener("click", () => {
+          send({ motor, release: !saved.release[motor] }, "Переключение мотора…");
+        });
+        element.append(row);
+      }
+      panels.motors.replaceChildren(element);
+    }
+
+    // ---------- Вкладка «Центр» ----------
+    function renderCenter() {
+      const center = current.center;
+      const controls = card("Центр", "Положение площадки в покое: в нём ждёт предмет и снимается эталон " +
+        "пустой площадки. Выравнивайте по видео справа.");
+      controls.append(
+        angleRow("Поворот", center, "rotate", (angle) => scheduleMove("center-rotate", { rotate: angle })),
+        angleRow("Наклон", center, "tilt", (angle) => scheduleMove("center-tilt", { tilt: angle })),
+      );
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      actions.innerHTML = `<button>Встать в центр</button>`;
+      actions.querySelector("button").addEventListener("click", () => run(
+        () => api("/api/calibration/move", { tilt: center.tilt, rotate: center.rotate }), "Движение в центр…"));
+      controls.append(actions);
+      const layout = document.createElement("div");
+      layout.className = "split";
+      layout.append(previewImage(), controls);
+      panels.center.replaceChildren(layout);
+    }
+
+    // ---------- Вкладка «Секции» ----------
+    function renderSections(data) {
+      const grid = document.createElement("div");
+      grid.className = "grid2";
+      Object.keys(current.sections).sort().forEach((name) => {
+        const section = current.sections[name];
+        const number = name.replace("section_", "");
+        const classes = (data.sectionClasses[name] || []).map((item) => CLASS_NAMES[item] || item).join(", ");
+        const element = card(`Секция ${number}`, classes || "класс не назначен");
+        element.append(
+          angleRow("Поворот к секции", section, "rotate", (angle) => scheduleMove(`${name}-rotate`, { rotate: angle })),
+          angleRow("Наклон для сброса", section, "tilt", (angle) => scheduleMove(`${name}-tilt`, { tilt: angle })),
+        );
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        actions.innerHTML = `<button data-act="show">Показать положение</button>
+          <button class="drop" data-act="test">Проверить сброс</button>`;
+        actions.querySelector("[data-act=show]").addEventListener("click", () => run(
+          () => api("/api/calibration/move", { rotate: section.rotate, tilt: section.tilt }),
+          `Движение к секции ${number}…`));
+        actions.querySelector("[data-act=test]").addEventListener("click", () => run(
+          () => api("/api/calibration/test", { center: current.center, action: section }),
+          `Сброс в секцию ${number}…`));
+        element.append(actions);
+        grid.append(element);
+      });
+      panels.sections.replaceChildren(grid);
+    }
+
+    // ---------- Вкладка «Камера» ----------
+    const CONTROL_NAMES = {
+      brightness: "Яркость", contrast: "Контраст", saturation: "Насыщенность", hue: "Оттенок",
+      gamma: "Гамма", sharpness: "Резкость", backlight_compensation: "Компенсация засветки",
+      power_line_frequency: "Частота сети (мерцание ламп)", white_balance_automatic: "Автобаланс белого",
+      white_balance_temperature: "Баланс белого", auto_exposure: "Автоэкспозиция",
+      exposure_time_absolute: "Выдержка", gain: "Усиление",
+    };
+    const controlTimers = {};
+
+    // Каждый параметр применяется к камере сразу после паузы в изменениях и
+    // сохраняется на плате; после переподключения камеры он подставляется снова.
+    function renderCamera(info) {
+      const controls = card("Камера", "Против бликов: уменьшите яркость, контраст и гамму. После " +
+        "изменений обновите снимки пустой площадки: старые снимки сделаны с другими параметрами.");
+      const cameraStatus = document.createElement("p");
+      cameraStatus.className = "hint";
+      if (info.error) {
+        cameraStatus.textContent = `Параметры недоступны: ${info.error}`;
+        controls.append(cameraStatus);
+      } else {
+        const values = {};
+        const list = document.createElement("div");
+        list.className = "control-list";
+        for (const control of info.controls.filter((item) => !item.inactive)) {
+          values[control.name] = control.value;
+          const label = CONTROL_NAMES[control.name] || control.name;
+          const send = (value) => {
+            clearTimeout(controlTimers[control.name]);
+            cameraStatus.textContent = "Применение…";
+            controlTimers[control.name] = setTimeout(async () => {
+              try {
+                await api("/api/camera/controls", { name: control.name, value });
+                cameraStatus.textContent = `${label}: ${value} — сохранено`;
+              } catch (error) {
+                cameraStatus.textContent = `Ошибка: ${error.message}`;
+              }
+            }, 300);
+          };
+          if (control.type === "int") {
+            const range = control.max - control.min;
+            list.append(sliderRow(`${label} <small>(по умолчанию ${control.default})</small>`, values,
+              control.name, {
+                min: control.min, max: control.max, unit: "",
+                steps: range > 30 ? [1, 10] : [1], onChange: send,
+              }));
+          } else {
+            const row = document.createElement("div");
+            row.className = "row";
+            const options = control.type === "bool" ? { 0: "Выключено", 1: "Включено" } : control.menu;
+            row.innerHTML = `<label>${label}</label><select>${Object.entries(options).map(([value, text]) =>
+              `<option value="${value}">${text}</option>`).join("")}</select>`;
+            const select = row.querySelector("select");
+            select.value = String(control.value);
+            select.addEventListener("change", () => send(Number(select.value)));
+            list.append(row);
+          }
+        }
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        actions.innerHTML = `<button data-act="background">Добавить снимок пустой площадки</button>
+          <button data-act="reset">Параметры по умолчанию</button>`;
+        actions.querySelector("[data-act=background]").addEventListener("click", async () => {
+          if (!confirm("Площадка пустая и над ней нет рук? Текущий кадр добавится в набор.")) return;
+          await api("/api/background", {});
+          cameraStatus.textContent = "Снимок пустой площадки добавлен";
+        });
+        actions.querySelector("[data-act=reset]").addEventListener("click", async () => {
+          try {
+            renderCamera(await api("/api/camera/controls/reset", {}));
+            showTab("camera");
+          } catch (error) {
+            cameraStatus.textContent = `Ошибка: ${error.message}`;
+          }
+        });
+        cameraStatus.textContent = `Камера ${info.device || ""}`;
+        controls.append(list, cameraStatus, actions);
+      }
+      const layout = document.createElement("div");
+      layout.className = "split";
+      layout.append(previewImage(), controls);
+      panels.camera.replaceChildren(layout);
+    }
+
+    // ---------- Вкладка «Область распознавания» ----------
+    // Область не двигает моторы, поэтому сохраняется сразу, отдельно от углов.
+    let cropTimer = null;
+    function renderCrop(crop) {
+      const width = crop.frameWidth || 640;
+      const height = crop.frameHeight || 480;
+      const margins = { top: crop.top, bottom: crop.bottom, left: crop.left, right: crop.right };
+      const controls = card("Область распознавания", "Голубая рамка на видео — часть кадра, в которой " +
+        "модель ищет предметы. Отступы от краёв кадра сохраняются сразу.");
+      const cropStatus = document.createElement("p");
+      cropStatus.className = "hint";
+      const describe = () => `Область ${width - margins.left - margins.right}×` +
+        `${height - margins.top - margins.bottom} из ${width}×${height} пикселей`;
+      const sendCrop = () => {
+        clearTimeout(cropTimer);
+        cropStatus.textContent = "Сохранение…";
+        cropTimer = setTimeout(async () => {
+          try {
+            await api("/api/crop", margins);
+            cropStatus.textContent = `Сохранено · ${describe()}`;
+          } catch (error) {
+            cropStatus.textContent = `Ошибка: ${error.message}`;
+          }
+        }, 400);
+      };
+      const options = (max) => ({ max, unit: " px", steps: [5, 20], onChange: sendCrop });
+      const rows = [
+        sliderRow("Сверху", margins, "top", options(Math.floor(height * 0.6))),
+        sliderRow("Снизу", margins, "bottom", options(Math.floor(height * 0.6))),
+        sliderRow("Слева", margins, "left", options(Math.floor(width * 0.6))),
+        sliderRow("Справа", margins, "right", options(Math.floor(width * 0.6))),
+      ];
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      actions.innerHTML = `<button>Отступы по умолчанию</button>`;
+      actions.querySelector("button").addEventListener("click", () => {
+        Object.assign(margins, crop.defaults);
+        rows.forEach((row) => row.render());
+        sendCrop();
+      });
+      cropStatus.textContent = describe();
+      controls.append(...rows, cropStatus, actions);
+      const layout = document.createElement("div");
+      layout.className = "split";
+      layout.append(previewImage(), controls);
+      panels.crop.replaceChildren(layout);
+    }
+
+    // ---------- Вкладка «Пустая площадка» ----------
+    // Набор снимков: рамка модели считается пустой площадкой, если совпадает
+    // хотя бы с одним снимком. Снимайте при разных бликах от людей вокруг.
+    const empty = {};
+    function renderEmpty() {
+      const controls = card("Пустая площадка", "Блики меняются от людей вокруг, поэтому снимков может быть " +
+        "несколько: предмет отсеивается, если картинка в рамке совпадает хотя бы с одним. Снимайте только " +
+        "пустую площадку без рук.");
+      controls.classList.add("empty-card");
+      controls.insertAdjacentHTML("beforeend", `
+        <p class="hint" id="empty-live"></p>
+        <div class="actions">
+          <button class="primary" data-act="add">Добавить снимок</button>
+          <button data-act="series">Снять серию: 5 снимков за 10 с</button>
+          <button data-act="clear">Удалить все</button>
+        </div>
+        <p class="hint" id="empty-count"></p>
+        <div class="thumbs" id="empty-thumbs"></div>`);
+      empty.live = controls.querySelector("#empty-live");
+      empty.count = controls.querySelector("#empty-count");
+      empty.thumbs = controls.querySelector("#empty-thumbs");
+      const busyButtons = (disabled) => controls.querySelectorAll(".actions button")
+        .forEach((button) => { button.disabled = disabled; });
+      controls.querySelector("[data-act=add]").addEventListener("click", async () => {
+        busyButtons(true);
+        try {
+          await api("/api/background", {});
+          await new Promise((resolve) => setTimeout(resolve, 600));
+          await refreshEmpty();
+        } catch (error) { showError(error); }
+        busyButtons(false);
+      });
+      controls.querySelector("[data-act=series]").addEventListener("click", async () => {
+        if (!confirm("Пять снимков с интервалом 2 секунды. Площадка должна оставаться пустой.")) return;
+        busyButtons(true);
+        try {
+          for (let shot = 1; shot <= 5; shot += 1) {
+            empty.count.textContent = `Серия: снимок ${shot} из 5…`;
+            await api("/api/background", {});
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            await refreshEmpty();
+          }
+        } catch (error) { showError(error); }
+        busyButtons(false);
+      });
+      controls.querySelector("[data-act=clear]").addEventListener("click", async () => {
+        if (!confirm("Удалить все снимки пустой площадки? Фильтр выключится, пока не добавите новые.")) return;
+        try {
+          showEmptyList(await api("/api/background/clear", {}));
+        } catch (error) { showError(error); }
+      });
+      const layout = document.createElement("div");
+      layout.className = "split";
+      layout.append(previewImage(), controls);
+      panels.empty.replaceChildren(layout);
+    }
+
+    function showEmptyList(data) {
+      empty.count.textContent = data.items.length
+        ? `Снимков в наборе: ${data.items.length} из ${data.max} (самые старые удаляются автоматически)`
+        : "Снимков нет — фильтр пустой площадки выключен";
+      empty.thumbs.replaceChildren(...data.items.slice().reverse().map((item) => {
+        const figure = document.createElement("figure");
+        const time = new Date(item.created * 1000).toLocaleTimeString("ru-RU");
+        figure.innerHTML = `<img src="/api/background/thumbnail?id=${item.id}" alt="Снимок ${time}">
+          <figcaption>${time}<button title="Удалить снимок">✕</button></figcaption>`;
+        figure.querySelector("button").addEventListener("click", async () => {
+          try {
+            showEmptyList(await api("/api/background/delete", { id: item.id }));
+          } catch (error) { showError(error); }
+        });
+        return figure;
+      }));
+    }
+
+    async function refreshEmpty() {
+      if (!empty.thumbs) return;
+      try {
+        showEmptyList(await api("/api/background"));
+      } catch (error) { showError(error); }
+    }
+
+    // Пока вкладка открыта, показываем, насколько текущая рамка похожа на набор.
+    setInterval(async () => {
+      if (!panels.empty.classList.contains("active") || !empty.live) return;
+      try {
+        const state = await api("/api/state");
+        const p = state.platform || {};
+        const d = state.detection;
+        empty.live.textContent = p.difference === null || p.difference === undefined
+          ? (d ? `Модель видит: ${CLASS_NAMES[d.className] || d.className}` : "Модель ничего не видит")
+          : `Модель видит предмет · разница с ближайшим снимком ${p.difference} (порог ${p.threshold}) → ` +
+            (p.rejected ? "отсеяно" : "предмет");
+      } catch (error) { /* следующая попытка через секунду */ }
+    }, 1000);
+
+    // ---------- Вкладка «Датасет» ----------
+    // Кадры решений с разметкой модели; ответы посетителей сортируют их по группам.
+    const DATASET_GROUPS = [
+      ["confirmed", "подтверждены «Да»", "разметка верна, готовы к обучению"],
+      ["rejected", "ответ «Нет»", "модель ошиблась — переразметить, самые ценные"],
+      ["unverified", "без ответа", "проверить перед обучением"],
+      ["background", "пустая площадка", "ложные срабатывания — фон без разметки"],
+    ];
+    let datasetTimer = null;
+    function renderDataset(data) {
+      const element = card("Датасет", "Сбор кадров для дообучения модели во время работы. В кадр попадают руки " +
+        "посетителей — включайте сбор, если это допустимо. Кадры хранятся только на устройстве.");
+      const row = document.createElement("div");
+      row.className = "motor";
+      row.innerHTML = `<span>Сбор кадров<small>${data.enabled ? "каждое решение и ложное срабатывание сохраняются"
+        : "кадры не сохраняются"}</small></span>
+        <button class="${data.enabled ? "on" : "off"}">${data.enabled ? "Включён" : "Выключен"}</button>`;
+      row.querySelector("button").addEventListener("click", async () => {
+        try { renderDataset(await api("/api/dataset", { enabled: !data.enabled })); } catch (error) { showError(error); }
+      });
+      const limit = { value: data.limitMb };
+      const status = document.createElement("p");
+      status.className = "hint";
+      status.textContent = `Занято ${data.sizeMb} МБ из ${data.limitMb} МБ; при превышении удаляются самые старые кадры.`;
+      const slider = sliderRow("Лимит места", limit, "value", {
+        min: 100, max: 20000, unit: " МБ", steps: [100, 1000],
+        onChange: (value) => {
+          clearTimeout(datasetTimer);
+          datasetTimer = setTimeout(async () => {
+            try { renderDataset(await api("/api/dataset", { limitMb: value })); } catch (error) { showError(error); }
+          }, 500);
+        },
+      });
+      const table = document.createElement("div");
+      table.className = "dataset-groups";
+      table.innerHTML = DATASET_GROUPS.map(([key, title, hint]) =>
+        `<div><b>${data.counts[key]}</b><span>${title}</span><small>${hint}</small></div>`).join("");
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      actions.innerHTML = `<a class="nav" href="/api/dataset/export" download>Скачать архив (YOLO)</a>
+        <button data-act="clear">Удалить все кадры</button>`;
+      actions.querySelector("[data-act=clear]").addEventListener("click", async () => {
+        if (!confirm("Удалить все собранные кадры? Сначала скачайте архив.")) return;
+        try { renderDataset(await api("/api/dataset/clear", {})); } catch (error) { showError(error); }
+      });
+      element.append(row, slider, status, table, actions);
+      panels.dataset.replaceChildren(element);
+    }
+
+    async function refreshDataset() {
+      try { renderDataset(await api("/api/dataset")); } catch (error) { showError(error); }
+    }
+
+    // ---------- Загрузка и сохранение ----------
+    async function load() {
+      const [data, crop, camera, display] = await Promise.all([
+        api("/api/calibration"), api("/api/crop"),
+        api("/api/camera/controls").catch((error) => ({ error: error.message })),
+        api("/api/display"),
+      ]);
+      saved = { center: data.center, sections: data.sections, enabled: data.enabled, release: data.release };
+      current = JSON.parse(JSON.stringify(saved));
+      renderDisplay(display);
+      renderMotors();
+      renderCenter();
+      renderSections(data);
+      renderCamera(camera);
+      renderCrop(crop);
+      renderEmpty();
+      showTab(document.querySelector("#tabs button.active")?.dataset.tab || savedTab());
+      updateStatus();
+      if (data.driver === "console") {
+        banner.textContent = "UMKA запущена без моторов (--hardware console): команды только пишутся в журнал.";
+      }
+    }
+
+    document.getElementById("save").addEventListener("click", () => run(async () => {
+      const data = await api("/api/calibration/save", current);
+      saved = { center: data.center, sections: data.sections, enabled: data.enabled, release: data.release };
+      current = JSON.parse(JSON.stringify(saved));
+    }, "Сохранение…"));
+
+    document.getElementById("revert").addEventListener("click", () => run(async () => {
+      await load();
+      await api("/api/calibration/move", { tilt: current.center.tilt, rotate: current.center.rotate });
+    }, "Возврат к сохранённым углам…"));
+
+    document.getElementById("exit").addEventListener("click", async (event) => {
+      event.preventDefault();
+      const target = event.currentTarget.href;
+      if (current && JSON.stringify(current) !== JSON.stringify(saved) &&
+          !confirm("Есть несохранённые изменения углов. Выйти без сохранения?")) {
+        return;
+      }
+      try { await setMaintenance(false); } catch (error) { /* страница всё равно закрывается */ }
+      window.location.href = target;
+    });
+
+    // Режим настройки продлевается, пока страница открыта; без запросов он
+    // снимается на сервере сам, если вкладку просто закрыли.
+    setInterval(() => setMaintenance(true).catch(showError), 30000);
+    window.addEventListener("pagehide", () => {
+      fetch("/api/calibration/mode", { method: "POST", body: JSON.stringify({ active: false }), keepalive: true });
+    });
+
+    showTab(savedTab());
+    setMaintenance(true).then(load).catch(showError);
+  </script>
+</body>
+
+</html>

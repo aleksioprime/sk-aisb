@@ -1,0 +1,6 @@
+# Дополнения для Orange Pi 5/5B: открыть шину I2C по номеру (/dev/i2c-5),
+# которой нет в списке шин Blinka. Ставится вместе с requirements.txt.
+-r requirements.txt
+Adafruit-Blinka>=9.2.0
+adafruit-extended-bus
+gpiod>=2.0.2,<3

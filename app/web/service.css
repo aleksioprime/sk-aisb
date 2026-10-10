@@ -1,0 +1,82 @@
+/* Общее оформление служебных страниц UMKA: настройки и демонстрация. */
+:root {
+  --bg: #062f2f;
+  --card: #0a3d3b;
+  --line: rgba(45, 212, 191, 0.25);
+  --accent: #2dd4bf;
+  --text: #e6fffa;
+  --muted: #9fbfbf;
+  --yes: #22c55e;
+  --no: #ef4444;
+}
+* { box-sizing: border-box; }
+/* Страница занимает ровно высоту экрана: вкладки и нижняя панель всегда
+   видны, прокручивается только содержимое вкладки на маленьких экранах. */
+html, body { height: 100%; }
+body { margin: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--bg);
+       color: var(--text); font-family: sans-serif; }
+header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 16px;
+         border-bottom: 1px solid var(--line); }
+header h1 { margin: 0 8px 0 0; font-size: 20px; }
+nav.tabs { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+nav.tabs button { padding: 8px 14px; }
+nav.tabs button.active { background: var(--accent); color: #062f2f; border-color: var(--accent); font-weight: bold; }
+a.nav { color: var(--accent); text-decoration: none; font-size: 15px; padding: 8px 14px;
+        border: 1px solid var(--line); border-radius: 20px; white-space: nowrap; }
+.banner { margin: 8px 16px 0; padding: 6px 12px; border-radius: 10px; font-size: 14px;
+          background: rgba(250, 204, 21, 0.12); border: 1px solid rgba(250, 204, 21, 0.4); color: #fde68a; }
+.banner.error { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.5); color: #fecaca; }
+main { flex: 1; min-height: 0; overflow: auto; padding: 10px 16px; }
+.panel { display: none; height: 100%; }
+.panel.active { display: block; }
+.grid2 { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.split { display: grid; gap: 16px; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); height: 100%; }
+@media (max-width: 760px) {
+  .grid2, .split { grid-template-columns: 1fr; height: auto; }
+}
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; }
+.card h2 { margin: 0 0 2px; font-size: 18px; }
+.card .hint { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+.row { margin-bottom: 8px; }
+.row label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 2px; }
+.row label b { font-size: 16px; color: var(--accent); }
+.control { display: flex; align-items: center; gap: 4px; }
+.control input[type=range] { flex: 1; min-width: 60px; accent-color: var(--accent); }
+.control button { padding: 5px 8px; min-width: 40px; font-size: 13px; }
+button { font: inherit; font-size: 14px; padding: 8px 14px; border-radius: 18px; border: 1px solid var(--line);
+         background: #0f4f4b; color: var(--text); cursor: pointer; }
+button:disabled { opacity: 0.5; cursor: wait; }
+button.primary { background: var(--accent); color: #062f2f; border: 0; font-weight: bold; }
+button.drop { background: var(--yes); color: #052e16; border: 0; font-weight: bold; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.preview { display: block; width: 100%; height: 100%; max-height: 100%; min-height: 0; object-fit: contain;
+           border-radius: 10px; background: #000; }
+.motor { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+         padding: 12px 0; border-top: 1px solid var(--line); }
+.motor:first-of-type { border-top: 0; }
+.motor span { font-size: 17px; }
+.motor small { display: block; color: var(--muted); font-size: 13px; }
+.motor button.on { background: var(--yes); color: #052e16; border: 0; font-weight: bold; }
+.motor button.off { background: var(--no); color: #fff; border: 0; font-weight: bold; }
+footer { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 16px;
+         background: rgba(4, 30, 30, 0.95); border-top: 1px solid var(--line); }
+footer #status { flex: 1; color: var(--muted); font-size: 14px; min-width: 200px; }
+footer #status.dirty { color: #fde68a; }
+.row label small { color: var(--muted); font-size: 12px; font-weight: normal; }
+select { width: 100%; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line);
+         background: #0f4f4b; color: var(--text); font: inherit; font-size: 14px; }
+.control-list .row { margin-bottom: 3px; }
+.empty-card { display: flex; flex-direction: column; min-height: 0; }
+.thumbs { flex: 1; min-height: 0; overflow: auto; display: grid; gap: 8px;
+          grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); align-content: start; }
+.thumbs figure { margin: 0; }
+.thumbs img { display: block; width: 100%; border-radius: 8px; background: #000; }
+.thumbs figcaption { display: flex; justify-content: space-between; align-items: center; color: var(--muted);
+                     font-size: 12px; margin-top: 2px; }
+.thumbs figcaption button { padding: 2px 8px; font-size: 12px; }
+.dataset-groups { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0 12px; }
+@media (max-width: 760px) { .dataset-groups { grid-template-columns: 1fr 1fr; } }
+.dataset-groups div { padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.dataset-groups b { display: block; font-size: 24px; color: var(--accent); }
+.dataset-groups span { display: block; font-size: 14px; }
+.dataset-groups small { color: var(--muted); font-size: 12px; }

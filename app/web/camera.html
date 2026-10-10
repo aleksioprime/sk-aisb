@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>УМКА — демонстрация распознавания</title>
+  <link rel="stylesheet" href="service.css">
+  <style>
+    /* Видео занимает основную часть экрана, справа — узкая информационная колонка. */
+    .split { grid-template-columns: minmax(0, 1fr) 280px; gap: 12px; }
+    @media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
+    .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; }
+    .side .card { padding: 8px 12px; }
+    .side .card h2 { font-size: 15px; }
+    .side .hint { font-size: 12px; margin-bottom: 4px; }
+    .seen { font-size: 26px; font-weight: bold; color: var(--accent); margin: 2px 0; }
+    .seen.none { color: var(--muted); font-size: 20px; }
+    .meter { height: 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+    .meter div { height: 100%; width: 0; background: var(--accent); transition: width 0.3s ease; }
+    .state { font-size: 16px; font-weight: bold; }
+    .legend { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; }
+    .legend i { display: inline-block; width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px;
+                border-radius: 3px; }
+    .stats { display: flex; gap: 20px; }
+    .stats b { display: block; font-size: 22px; color: var(--accent); }
+    .stats span { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Демонстрация распознавания</h1>
+    <nav class="tabs"></nav>
+    <a class="nav" data-keep-query href="/settings.html">Настройки</a>
+    <a class="nav" data-keep-query href="/">Главный экран</a>
+  </header>
+  <main>
+    <div class="split">
+      <img class="preview" src="/api/camera.mjpg" alt="Камера UMKA">
+      <div class="side">
+        <div class="card">
+          <h2>Модель видит</h2>
+          <div class="seen none" id="seen">—</div>
+          <div class="meter"><div id="meter"></div></div>
+          <p class="hint" id="seen-details"></p>
+        </div>
+        <div class="card">
+          <h2>Состояние</h2>
+          <div class="state" id="state">—</div>
+          <p class="hint" id="last-action"></p>
+        </div>
+        <div class="card">
+          <h2>Фильтр пустой площадки</h2>
+          <p class="hint" id="platform"></p>
+          <div class="actions"><button id="capture">Добавить снимок</button></div>
+        </div>
+        <div class="card">
+          <div class="stats">
+            <div><b id="total">0</b><span>предметов</span></div>
+            <div><b id="weight">0</b><span>≈ кг</span></div>
+          </div>
+        </div>
+        <div class="legend">
+          <span><i style="background:#00c8ff"></i>область распознавания</span>
+          <span><i style="background:#00ff00"></i>найденный предмет</span>
+          <span><i style="background:#ff4040"></i>отсеяно как пустая площадка</span>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <div id="status">Подключение…</div>
+  </footer>
+
+  <script>
+    const CLASS_NAMES = {
+      paper: "Бумага", plastic: "Пластик", organic: "Органика", non_recyclable: "Несортируемые отходы",
+    };
+    const STATE_NAMES = {
+      IDLE: "Ожидание предмета",
+      CANDIDATE: "Проверяю, что это за предмет…",
+      SORTING: "Сортировка",
+      WAITING_FOR_REMOVAL: "Жду, пока площадка освободится",
+    };
+    const element = (id) => document.getElementById(id);
+
+    for (const link of document.querySelectorAll("[data-keep-query]")) {
+      link.href = link.getAttribute("href") + window.location.search;
+    }
+
+    element("capture").addEventListener("click", async () => {
+      if (!confirm("Площадка пустая и над ней нет рук? Текущий кадр добавится в набор.")) return;
+      await fetch("/api/background", { method: "POST", body: "{}" });
+    });
+
+    function render(state) {
+      const detection = state.detection;
+      const seen = element("seen");
+      if (detection) {
+        seen.textContent = CLASS_NAMES[detection.className] || detection.className;
+        seen.classList.remove("none");
+        element("meter").style.width = `${Math.round(detection.confidence * 100)}%`;
+        element("seen-details").textContent =
+          `Уверенность ${Math.round(detection.confidence * 100)}% · площадь рамки ${detection.area} пикс.`;
+      } else {
+        seen.textContent = "Ничего";
+        seen.classList.add("none");
+        element("meter").style.width = "0";
+        element("seen-details").textContent = state.platform && state.platform.rejected
+          ? "Модель увидела предмет, но картинка совпадает с пустой площадкой — отсеяно"
+          : "На площадке нет предметов";
+      }
+
+      element("state").textContent = STATE_NAMES[state.controllerState] || state.controllerState;
+      element("last-action").textContent = [state.name, state.lastAction].filter(Boolean).join(" · ");
+
+      const platform = state.platform;
+      if (!platform || !platform.reference) {
+        element("platform").textContent = "Снимков пустой площадки нет — фильтр выключен";
+      } else if (platform.difference === null) {
+        element("platform").textContent = `Снимков в наборе: ${platform.references} · порог разницы ${platform.threshold}`;
+      } else {
+        element("platform").textContent = `Разница с ближайшим из ${platform.references} снимков: ${platform.difference} ` +
+          `(порог ${platform.threshold}) → ${platform.rejected ? "отсеяно" : "предмет"}`;
+      }
+
+      element("total").textContent = state.totalCount ?? state.stats?.total_items ?? 0;
+      element("weight").textContent = state.totalWeight ?? state.stats?.estimated_weight_kg ?? 0;
+      element("status").textContent = `Камера: ${state.camera.message} · модель: ${state.model.message}` +
+        (state.error ? ` · ошибка: ${state.error}` : "");
+    }
+
+    async function poll() {
+      try {
+        render(await (await fetch("/api/state")).json());
+      } catch (error) {
+        element("status").textContent = "Нет связи с UMKA";
+      }
+    }
+    poll();
+    setInterval(poll, 500);
+  </script>
+</body>
+
+</html>
