@@ -48,7 +48,8 @@ cd ~/app && .venv/bin/python app.py
 Вкладки настроек:
 
 - **Экран** — подтверждение распознавания «Да/Нет» или показ результата с
-  полосой времени;
+  полосой времени; разрешение дисплея, которое UMKA удерживает после
+  переподключения;
 - **Моторы** — выключить неисправный или перегретый мотор (сигнал снимается сразу);
 - **Центр**, **Секции** — углы покоя и сброса в каждую секцию, «Проверить сброс»;
 - **Камера** — яркость, контраст, гамма и другие параметры камеры;
@@ -90,7 +91,7 @@ cd ~/app && .venv/bin/python app.py
 | `events/events.jsonl` | история сортировок и ответов, 30 дней |
 | `logs/umka.log` | журнал, ротация ежедневно, 14 дней |
 | `servo_calibration.json` | углы и включённые моторы со страницы настроек |
-| `crop.json`, `camera_controls.json`, `display.json` | область, параметры камеры, режим экрана |
+| `crop.json`, `camera_controls.json`, `display.json`, `screen.json` | область, параметры камеры, режим экрана, разрешение дисплея |
 | `empty_platform/*.png` | снимки пустой площадки (пригодятся и для дообучения модели) |
 | `dataset/{confirmed,rejected,unverified,background}/` | кадры для дообучения: `.jpg`, разметка YOLO `.txt`, сведения `.json` |
 
@@ -102,6 +103,7 @@ cd ~/app && .venv/bin/python app.py
 | `GET /api/camera.mjpg` | видео с разметкой |
 | `POST /api/feedback` | ответ «Да/Нет»: `{"answer": "yes", "eventId": "..."}` |
 | `GET/POST /api/display` | режим главного экрана |
+| `GET/POST /api/screen` | разрешение дисплея (xrandr) |
 | `GET /api/calibration`, `POST /api/calibration/{mode,move,test,save,motor}` | настройка механизма |
 | `GET/POST /api/camera/controls`, `POST /api/camera/controls/reset` | параметры камеры |
 | `GET/POST /api/crop` | область распознавания |

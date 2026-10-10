@@ -228,7 +228,53 @@
         },
       });
       element.append(row, slider, status);
-      panels.display.replaceChildren(element);
+      const monitor = card("Дисплей", "Разрешение экрана устройства. Выбранный режим UMKA держит сама: если " +
+        "после переподключения дисплея система переключится на другой, через несколько секунд он вернётся.");
+      monitor.id = "monitor-card";
+      panels.display.replaceChildren(element, monitor);
+      refreshMonitor();
+    }
+
+    async function refreshMonitor() {
+      const monitor = document.getElementById("monitor-card");
+      if (!monitor) return;
+      let data;
+      try {
+        data = await api("/api/screen");
+      } catch (error) {
+        monitor.querySelector(".hint").textContent = `Недоступно: ${error.message}`;
+        return;
+      }
+      const output = data.output;
+      monitor.querySelectorAll(".row, .actions, .monitor-state").forEach((item) => item.remove());
+      const state = document.createElement("p");
+      state.className = "hint monitor-state";
+      if (!output) {
+        state.textContent = "Дисплей не подключён.";
+        monitor.append(state);
+        return;
+      }
+      state.textContent = `${output.name}: сейчас ${output.current || "—"}, «родной» ${output.preferred || "—"}` +
+        (data.saved ? ` · UMKA держит ${data.saved}` : " · режим не удерживается");
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `<label>Режим</label><select>${output.modes.map((mode) =>
+        `<option value="${mode}">${mode}${mode === output.preferred ? " (родной)" : ""}</option>`).join("")}</select>`;
+      const select = row.querySelector("select");
+      select.value = data.saved || output.current || output.modes[0];
+      const actions = document.createElement("div");
+      actions.className = "actions";
+      actions.innerHTML = `<button class="primary" data-act="apply">Применить и держать</button>
+        <button data-act="release">Не удерживать</button>`;
+      actions.querySelector("[data-act=apply]").addEventListener("click", async () => {
+        try { await api("/api/screen", { mode: select.value }); } catch (error) { showError(error); }
+        refreshMonitor();
+      });
+      actions.querySelector("[data-act=release]").addEventListener("click", async () => {
+        try { await api("/api/screen", { mode: null }); } catch (error) { showError(error); }
+        refreshMonitor();
+      });
+      monitor.append(state, row, actions);
     }
 
     // ---------- Вкладка «Моторы» ----------

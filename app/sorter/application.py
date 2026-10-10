@@ -19,6 +19,7 @@ from .display_settings import DisplaySettings
 from .event_journal import EventJournal
 from .hardware import create_hardware
 from .preview import FramePreview
+from .screen import ScreenManager
 from .state import StateStore
 from .statistics import StatisticsStore
 from .web import WebServer
@@ -55,6 +56,7 @@ class UmkaApplication:
         self.camera_controls = CameraControls(config.camera_controls_path)
         self.display = DisplaySettings(config.display_path)
         self.dataset = DatasetCollector(config.dataset_dir, config.dataset_settings_path)
+        self.screen = ScreenManager(config.screen_path)
         # Главный экран получает настройки вместе с остальным состоянием.
         self.state.update(display=dict(self.display.values))
         self.platform = EmptyPlatformFilter(
@@ -87,6 +89,8 @@ class UmkaApplication:
                     200, {"controls": self.camera_controls.reset()}),
                 ("GET", "/api/display"): lambda _body: (200, dict(self.display.values)),
                 ("POST", "/api/display"): self._save_display,
+                ("GET", "/api/screen"): lambda _body: (200, self.screen.snapshot()),
+                ("POST", "/api/screen"): lambda body: (200, self.screen.set_mode(body.get("mode"))),
                 ("GET", "/api/dataset"): lambda _body: (200, self.dataset.snapshot()),
                 ("POST", "/api/dataset"): lambda body: (200, self.dataset.save_settings(body)),
                 ("POST", "/api/dataset/clear"): lambda _body: (200, self.dataset.clear()),
@@ -278,6 +282,7 @@ class UmkaApplication:
         self.config.validate()
         calibration.load(self.config.calibration_path)
         self.web.start()
+        self.screen.start()
         try:
             # Сервер запускается первым, чтобы на странице были видны ошибки
             # последующей инициализации модели, GPIO или камеры.
@@ -449,6 +454,7 @@ class UmkaApplication:
     def close(self) -> None:
         """Остановить фоновые компоненты и освободить аппаратные ресурсы."""
         self.stop_event.set()
+        self.screen.close()
         if self.camera:
             self.camera.close()
         if self.hardware:
