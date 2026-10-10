@@ -196,5 +196,28 @@ class SharedCalibrationTests(unittest.TestCase):
             self.assertEqual(driver._move.call_args_list, [call(driver.rotate, 155), call(driver.rotate, 47)])
 
 
+    @patch("sorter.hardware.time.sleep")
+    def test_motor_released_at_rest_only_after_return_to_center(self, _sleep):
+        with patch("sorter.hardware.MOTORS_ENABLED", {"tilt": True, "rotate": True}), \
+                patch("sorter.hardware.MOTORS_RELEASE_AT_REST", {"tilt": False, "rotate": True}), \
+                patch("sorter.hardware.CENTER_TILT_ANGLE", 82), \
+                patch("sorter.hardware.CENTER_ROTATE_ANGLE", 47), \
+                patch("sorter.hardware.ACTIONS", {"section_1": {"rotate": 155, "tilt": 65}}):
+            for driver_type in (GpioZeroHardware, Pca9685Hardware):
+                with self.subTest(driver=driver_type.__name__):
+                    driver = object.__new__(driver_type)
+                    driver.tilt = object()
+                    driver.rotate = object()
+                    events = Mock()
+                    driver._move = events.move
+                    driver._release = events.release
+                    driver.sort_to("section_1")
+                    self.assertEqual(events.mock_calls, [
+                        call.move(driver.rotate, 155), call.move(driver.tilt, 65),
+                        call.move(driver.tilt, 82), call.move(driver.rotate, 47),
+                        call.release(driver.rotate),
+                    ])
+
+
 if __name__ == "__main__":
     unittest.main()

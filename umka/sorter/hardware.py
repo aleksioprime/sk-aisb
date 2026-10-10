@@ -34,6 +34,9 @@ ACTIONS = {
 # Выключенный мотор обесточивается и не получает команд — например, неисправный.
 # Переключается на странице настроек и хранится вместе с калибровкой.
 MOTORS_ENABLED = {"tilt": True, "rotate": True}
+# Мотор, отпускаемый в центре, после возврата в покой обесточивается: он не держит
+# усилие, поэтому не дрожит и не греется. При следующем движении сигнал подаётся снова.
+MOTORS_RELEASE_AT_REST = {"tilt": False, "rotate": False}
 
 
 # Шина /dev/i2c-5 — контакты 3 (SDA) и 5 (SCL) 26-контактного разъёма Orange Pi 5B.
@@ -151,6 +154,11 @@ class _ServoSwitch:
         self._release(getattr(self, motor))
         LOG.info("Мотор %s отключён", motor)
 
+    def _rest(self, motor: str) -> None:
+        """Отпустить мотор в центре, если так задано в настройках."""
+        if MOTORS_ENABLED.get(motor, True) and MOTORS_RELEASE_AT_REST.get(motor, False):
+            self._release(getattr(self, motor))
+
 
 class GpioZeroHardware(_ServoSwitch):
     """Управлять двумя сервоприводами через gpiozero и backend lgpio.
@@ -193,6 +201,9 @@ class GpioZeroHardware(_ServoSwitch):
         """Сначала восстановить наклон площадки, затем вернуть поворот в центр."""
         self._drive("tilt", CENTER_TILT_ANGLE)
         self._drive("rotate", CENTER_ROTATE_ANGLE)
+        # Отпускать только после обоих движений: _move уже выдержал паузу на доводку.
+        self._rest("tilt")
+        self._rest("rotate")
 
     def set_angles(self, rotate: float | None = None, tilt: float | None = None) -> None:
         """Сначала повернуть, затем наклонить; None оставляет мотор на месте."""
@@ -315,6 +326,9 @@ class Pca9685Hardware(_ServoSwitch):
         """Сначала восстановить наклон площадки, затем вернуть поворот в центр."""
         self._drive("tilt", CENTER_TILT_ANGLE)
         self._drive("rotate", CENTER_ROTATE_ANGLE)
+        # Отпускать только после обоих движений: _move уже выдержал паузу на доводку.
+        self._rest("tilt")
+        self._rest("rotate")
 
     def set_angles(self, rotate: float | None = None, tilt: float | None = None) -> None:
         """Сначала повернуть, затем наклонить; None оставляет мотор на месте."""

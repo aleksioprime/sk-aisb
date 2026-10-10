@@ -18,6 +18,7 @@ def snapshot() -> dict:
         "center": {"tilt": hardware.CENTER_TILT_ANGLE, "rotate": hardware.CENTER_ROTATE_ANGLE},
         "sections": {name: dict(angles) for name, angles in hardware.ACTIONS.items()},
         "enabled": dict(hardware.MOTORS_ENABLED),
+        "release": dict(hardware.MOTORS_RELEASE_AT_REST),
     }
 
 
@@ -40,6 +41,7 @@ def validate(data: dict) -> dict:
     sections = data["sections"]
     # Файлы, сохранённые до появления переключателей, включают оба мотора.
     enabled = data.get("enabled", {})
+    release = data.get("release", {})
     if set(sections) != set(hardware.ACTIONS):
         raise ValueError(f"Нужны секции: {', '.join(sorted(hardware.ACTIONS))}")
     return {
@@ -49,6 +51,7 @@ def validate(data: dict) -> dict:
             for name, angles in sections.items()
         },
         "enabled": {motor: bool(enabled.get(motor, True)) for motor in ("tilt", "rotate")},
+        "release": {motor: bool(release.get(motor, False)) for motor in ("tilt", "rotate")},
     }
 
 
@@ -59,6 +62,7 @@ def apply(data: dict) -> None:
     hardware.CENTER_ROTATE_ANGLE = data["center"]["rotate"]
     hardware.ACTIONS = data["sections"]
     hardware.MOTORS_ENABLED = data["enabled"]
+    hardware.MOTORS_RELEASE_AT_REST = data["release"]
 
 
 def load(path: Path) -> None:

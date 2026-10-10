@@ -232,7 +232,7 @@ class UmkaApplication:
         return 200, {"device": self.camera_controls.device, "controls": controls}
 
     def _switch_motor(self, body: dict):
-        """Включить или выключить мотор сразу и сохранить выбор в файл.
+        """Включить или выключить мотор, задать отпускание в центре; сохранить в файл.
 
         Работает и вне режима настройки: выключить перегретый мотор нужно
         немедленно. Сохранённые углы при этом не меняются.
@@ -240,18 +240,25 @@ class UmkaApplication:
         motor = body["motor"]
         if motor not in ("tilt", "rotate"):
             raise ValueError("motor должен быть tilt или rotate")
-        enabled = bool(body["enabled"])
         data = calibration.snapshot()
-        data["enabled"][motor] = enabled
+        if "enabled" in body:
+            data["enabled"][motor] = bool(body["enabled"])
+        if "release" in body:
+            data["release"][motor] = bool(body["release"])
         calibration.save(self.config.calibration_path, data)
         if self.hardware is not None:
             with self.hardware_lock:
-                if enabled:
+                if data["enabled"][motor]:
+                    # Центрирование применяет выбор сразу: мотор встаёт в центр
+                    # и, если так задано, отпускается.
                     self.hardware.center()
                 else:
                     self.hardware.release(motor)
-        LOG.info("Мотор %s %s", motor, "включён" if enabled else "выключен")
-        return 200, {"enabled": calibration.snapshot()["enabled"]}
+        LOG.info("Мотор %s: %s, %s в центре", motor,
+                 "включён" if data["enabled"][motor] else "выключен",
+                 "отпускается" if data["release"][motor] else "удерживается")
+        snapshot = calibration.snapshot()
+        return 200, {"enabled": snapshot["enabled"], "release": snapshot["release"]}
 
     def run(self) -> None:
         """Проверить настройки, запустить компоненты и войти в цикл зрения."""

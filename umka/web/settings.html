@@ -230,22 +230,36 @@
     // ---------- Вкладка «Моторы» ----------
     function renderMotors() {
       const element = card("Моторы", "Выключенный мотор сразу обесточивается и не получает команд ни при " +
-        "сортировке, ни отсюда. Используйте, если мотор неисправен или греется. Выбор сохраняется сразу.");
+        "сортировке, ни отсюда. Отпускаемый в центре мотор после возврата в покой обесточивается: не " +
+        "дрожит и не греется, а при следующем сбросе снова получает сигнал. Выбор сохраняется сразу.");
+      const send = (changes, message) => run(async () => {
+        const result = await api("/api/calibration/motor", changes);
+        saved.enabled = result.enabled;
+        saved.release = result.release;
+        current.enabled = { ...result.enabled };
+        current.release = { ...result.release };
+        renderMotors();
+      }, message);
       for (const motor of ["rotate", "tilt"]) {
         const row = document.createElement("div");
         row.className = "motor";
         const enabled = saved.enabled[motor];
-        row.innerHTML = `<span>${MOTOR_NAMES[motor]}<small>${enabled ? "работает" :
-          "выключен — сигнал снят"}</small></span>
-          <button class="${enabled ? "on" : "off"}">${enabled ? "Включён" : "Выключен"}</button>`;
-        row.querySelector("button").addEventListener("click", () => run(async () => {
+        const release = saved.release[motor];
+        const state = !enabled ? "выключен — сигнал снят"
+          : release ? "работает, в центре отпускается" : "работает, в центре удерживается";
+        row.innerHTML = `<span>${MOTOR_NAMES[motor]}<small>${state}</small></span>
+          <span class="actions">
+            ${enabled ? `<button data-act="release">${release ? "Отпускается в центре" : "Держит в центре"}</button>` : ""}
+            <button data-act="enabled" class="${enabled ? "on" : "off"}">${enabled ? "Включён" : "Выключен"}</button>
+          </span>`;
+        row.querySelector("[data-act=enabled]").addEventListener("click", () => {
           const next = !saved.enabled[motor];
           if (!next && !confirm(`Выключить мотор «${MOTOR_NAMES[motor]}»?`)) return;
-          const result = await api("/api/calibration/motor", { motor, enabled: next });
-          saved.enabled = result.enabled;
-          current.enabled = { ...result.enabled };
-          renderMotors();
-        }, "Переключение мотора…"));
+          send({ motor, enabled: next }, "Переключение мотора…");
+        });
+        row.querySelector("[data-act=release]")?.addEventListener("click", () => {
+          send({ motor, release: !saved.release[motor] }, "Переключение мотора…");
+        });
         element.append(row);
       }
       panels.motors.replaceChildren(element);
@@ -536,7 +550,7 @@
         api("/api/camera/controls").catch((error) => ({ error: error.message })),
         api("/api/display"),
       ]);
-      saved = { center: data.center, sections: data.sections, enabled: data.enabled };
+      saved = { center: data.center, sections: data.sections, enabled: data.enabled, release: data.release };
       current = JSON.parse(JSON.stringify(saved));
       renderDisplay(display);
       renderMotors();
@@ -554,7 +568,7 @@
 
     document.getElementById("save").addEventListener("click", () => run(async () => {
       const data = await api("/api/calibration/save", current);
-      saved = { center: data.center, sections: data.sections, enabled: data.enabled };
+      saved = { center: data.center, sections: data.sections, enabled: data.enabled, release: data.release };
       current = JSON.parse(JSON.stringify(saved));
     }, "Сохранение…"));
 
