@@ -344,7 +344,7 @@ class UmkaApplication:
             rejected = None
             difference = None
             if detection is not None:
-                # Рамка YOLO задана в обрезанном кадре, эталон — в полном.
+                # Рамка YOLO задана в обрезанном кадре, эталон - в полном.
                 x1, y1, x2, y2 = detection.box
                 left, top = area[:2]
                 box = (left + x1, top + y1, left + x2, top + y2)

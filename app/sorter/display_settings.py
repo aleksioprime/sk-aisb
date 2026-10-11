@@ -10,7 +10,7 @@ from pathlib import Path
 LOG = logging.getLogger(__name__)
 
 DEFAULTS = {
-    # True — экран спрашивает «Да/Нет»; False — только показывает результат.
+    # True - экран спрашивает «Да/Нет»; False - только показывает результат.
     "confirm": True,
     # Сколько секунд показывать результат без подтверждения.
     "resultSeconds": 5,

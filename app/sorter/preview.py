@@ -22,7 +22,7 @@ class FramePreview:
     def publish(self, frame, crop: tuple[int, int, int, int], detection, rejected=None) -> None:
         """Нарисовать разметку на копии кадра и сохранить её как JPEG.
 
-        ``crop`` — область распознавания (left, top, right, bottom) в координатах
+        ``crop`` - область распознавания (left, top, right, bottom) в координатах
         кадра, right и bottom не включаются;
         рамки ``detection`` и отсеянной ``rejected`` заданы в координатах
         обрезанного кадра.

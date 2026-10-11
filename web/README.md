@@ -12,7 +12,7 @@ docker compose up -d --build
 curl localhost:8300/api/devices
 ```
 
-Локально страница мониторинга — <http://localhost:8301>, API — <http://localhost:8300>.
+Локально страница мониторинга - <http://localhost:8301>, API - <http://localhost:8300>.
 
 ## Продакшн (Coolify)
 
@@ -24,8 +24,8 @@ curl localhost:8300/api/devices
    `*_IMAGE_TAG` в Coolify и запускает деплой.
 2. Coolify разворачивает [docker-compose.prod.yaml](docker-compose.prod.yaml)
    (приложение из репозитория, сборка Docker Compose, базовый каталог `/web`).
-   Домен и TLS — на стороне Coolify, наружу смотрит только `frontend` (порт 80).
-3. Брокер MQTT — общий сервис в сети `iot`; worker подключается к нему по
+   Домен и TLS - на стороне Coolify, наружу смотрит только `frontend` (порт 80).
+3. Брокер MQTT - общий сервис в сети `iot`; worker подключается к нему по
    `MQTT_HOST`. Пароль PostgreSQL Coolify генерирует сам.
 4. Устройства подключаются к брокеру снаружи: `mqtt.technocrew.ru:8883`, TLS
    (Traefik), пользователь `umka`.
@@ -36,7 +36,7 @@ curl localhost:8300/api/devices
 
 ## Вход на сайт
 
-Как в empolimer: пара JWT — access (30 минут, заголовок `Authorization: Bearer`)
+Как в empolimer: пара JWT - access (30 минут, заголовок `Authorization: Bearer`)
 и refresh (30 дней; при выходе отзывается). Данные устройств отдаются только
 вошедшим, открыт лишь `/api/health`. Секрет подписи `JWT_SECRET_KEY` в Coolify
 генерируется сам (`SERVICE_PASSWORD_64_JWT`).
@@ -65,7 +65,7 @@ docker compose exec backend python create_user.py admin --admin
 | `umka/<device_id>/status` | 1, retain | раз в минуту и при изменениях | `/api/state` устройства без детекции: `name`, `camera`, `model`, `hardware`, `stats`, `display` |
 | `umka/<device_id>/event` | 1 | каждое событие | строка `data/events/events.jsonl`: `event` (`sort`/`feedback`), `event_id`, `timestamp`, `class`, `waste_type`, `section`, `confidence`, `answer` |
 
-`device_id` — латиница без пробелов (`opi-expo`, `school-1`). Устройство
+`device_id` - латиница без пробелов (`opi-expo`, `school-1`). Устройство
 переотправляет события, накопленные без сети; повтор с тем же
 `(device_id, event_id, event)` сервер отбрасывает.
 

@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>УМКА — настройки</title>
+  <title>УМКА - настройки</title>
   <link rel="stylesheet" href="service.css">
 </head>
 
@@ -254,7 +254,7 @@
         monitor.append(state);
         return;
       }
-      state.textContent = `${output.name}: сейчас ${output.current || "—"}, «родной» ${output.preferred || "—"}` +
+      state.textContent = `${output.name}: сейчас ${output.current || "-"}, «родной» ${output.preferred || "-"}` +
         (data.saved ? ` · UMKA держит ${data.saved}` : " · режим не удерживается");
       const row = document.createElement("div");
       row.className = "row";
@@ -295,7 +295,7 @@
         row.className = "motor";
         const enabled = saved.enabled[motor];
         const release = saved.release[motor];
-        const state = !enabled ? "выключен — сигнал снят"
+        const state = !enabled ? "выключен - сигнал снят"
           : release ? "работает, в центре отпускается" : "работает, в центре удерживается";
         row.innerHTML = `<span>${MOTOR_NAMES[motor]}<small>${state}</small></span>
           <span class="actions">
@@ -400,7 +400,7 @@
             controlTimers[control.name] = setTimeout(async () => {
               try {
                 await api("/api/camera/controls", { name: control.name, value });
-                cameraStatus.textContent = `${label}: ${value} — сохранено`;
+                cameraStatus.textContent = `${label}: ${value} - сохранено`;
               } catch (error) {
                 cameraStatus.textContent = `Ошибка: ${error.message}`;
               }
@@ -458,7 +458,7 @@
       const width = crop.frameWidth || 640;
       const height = crop.frameHeight || 480;
       const margins = { top: crop.top, bottom: crop.bottom, left: crop.left, right: crop.right };
-      const controls = card("Область распознавания", "Голубая рамка на видео — часть кадра, в которой " +
+      const controls = card("Область распознавания", "Голубая рамка на видео - часть кадра, в которой " +
         "модель ищет предметы. Отступы от краёв кадра сохраняются сразу.");
       const cropStatus = document.createElement("p");
       cropStatus.className = "hint";
@@ -559,7 +559,7 @@
     function showEmptyList(data) {
       empty.count.textContent = data.items.length
         ? `Снимков в наборе: ${data.items.length} из ${data.max} (самые старые удаляются автоматически)`
-        : "Снимков нет — фильтр пустой площадки выключен";
+        : "Снимков нет - фильтр пустой площадки выключен";
       empty.thumbs.replaceChildren(...data.items.slice().reverse().map((item) => {
         const figure = document.createElement("figure");
         const time = new Date(item.created * 1000).toLocaleTimeString("ru-RU");
@@ -599,14 +599,14 @@
     // Кадры решений с разметкой модели; ответы посетителей сортируют их по группам.
     const DATASET_GROUPS = [
       ["confirmed", "подтверждены «Да»", "разметка верна, готовы к обучению"],
-      ["rejected", "ответ «Нет»", "модель ошиблась — переразметить, самые ценные"],
+      ["rejected", "ответ «Нет»", "модель ошиблась - переразметить, самые ценные"],
       ["unverified", "без ответа", "проверить перед обучением"],
-      ["background", "пустая площадка", "ложные срабатывания — фон без разметки"],
+      ["background", "пустая площадка", "ложные срабатывания - фон без разметки"],
     ];
     let datasetTimer = null;
     function renderDataset(data) {
       const element = card("Датасет", "Сбор кадров для дообучения модели во время работы. В кадр попадают руки " +
-        "посетителей — включайте сбор, если это допустимо. Кадры хранятся только на устройстве.");
+        "посетителей - включайте сбор, если это допустимо. Кадры хранятся только на устройстве.");
       const row = document.createElement("div");
       row.className = "motor";
       row.innerHTML = `<span>Сбор кадров<small>${data.enabled ? "каждое решение и ложное срабатывание сохраняются"

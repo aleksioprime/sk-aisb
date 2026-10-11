@@ -58,7 +58,7 @@ def main(argv=None) -> None:
                                args.i2c_bus)
     try:
         hardware.center()
-        print("Команды: 1–4 — сброс в секцию; c — центр; q — выход.")
+        print("Команды: 1–4 - сброс в секцию; c - центр; q - выход.")
         while True:
             command = input("Секция> ").strip().lower()
             if command == "q":

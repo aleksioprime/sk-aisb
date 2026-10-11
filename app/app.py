@@ -16,7 +16,7 @@ from sorter.logging_config import configure_logging
 
 def parse_args() -> argparse.Namespace:
     """Разобрать параметры запуска из командной строки."""
-    parser = argparse.ArgumentParser(description="UMKA — автоматическая сортировка мусора")
+    parser = argparse.ArgumentParser(description="UMKA - автоматическая сортировка мусора")
     parser.add_argument("--camera", type=int, default=0, help="Индекс USB-камеры")
     parser.add_argument("--model", type=Path, help="Путь к YOLO .pt")
     parser.add_argument("--host", default="0.0.0.0", help="Адрес веб-сервера")

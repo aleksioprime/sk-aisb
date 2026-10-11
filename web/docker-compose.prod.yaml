@@ -1,6 +1,6 @@
 # Продакшн в Coolify: образы собирает GitHub Actions (.github/workflows/web.yml)
-# и кладёт в GHCR. Домен и TLS — на стороне Coolify, наружу смотрит только frontend (порт 80).
-# Брокер MQTT — общий сервис в сети iot (как у empolimer), worker подключается к нему по MQTT_HOST.
+# и кладёт в GHCR. Домен и TLS - на стороне Coolify, наружу смотрит только frontend (порт 80).
+# Брокер MQTT - общий сервис в сети iot (как у empolimer), worker подключается к нему по MQTT_HOST.
 # Пользователя и пароль PostgreSQL Coolify генерирует сам (SERVICE_USER_* / SERVICE_PASSWORD_*).
 x-app: &app
   restart: unless-stopped

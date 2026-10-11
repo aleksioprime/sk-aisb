@@ -2,7 +2,7 @@
 Type=Application
 Version=1.0
 Name=Запустить UMKA
-Comment=Запустить распознавание и сортировку; параметры — в umka.conf
+Comment=Запустить распознавание и сортировку; параметры - в umka.conf
 Exec=@APP_DIR@/.venv/bin/python @APP_DIR@/app.py
 Path=@APP_DIR@
 Icon=utilities-terminal

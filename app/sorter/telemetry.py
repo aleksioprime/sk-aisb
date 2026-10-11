@@ -1,15 +1,15 @@
 """Отправка состояния и событий устройства на сервер мониторинга по MQTT.
 
-Топики (формат — web/README.md):
-  umka/<device_id>/status — состояние раз в минуту, retain;
-  umka/<device_id>/event  — строки журнала data/events/events.jsonl, QoS 1.
+Топики (формат - web/README.md):
+  umka/<device_id>/status - состояние раз в минуту, retain;
+  umka/<device_id>/event  - строки журнала data/events/events.jsonl, QoS 1.
 
 События читаются из журнала, поэтому без связи ничего не теряется: после
-восстановления отправляется всё, что накопилось. Позиция — последнее
+восстановления отправляется всё, что накопилось. Позиция - последнее
 подтверждённое брокером событие (а не смещение в файле: в полночь журнал
 переносится в архив). Повтор события сервер отбрасывает.
 
-Настройки — в umka.conf: mqtt_host, mqtt_port, mqtt_tls, mqtt_username,
+Настройки - в umka.conf: mqtt_host, mqtt_port, mqtt_tls, mqtt_username,
 mqtt_password, device_id, device_name. Без mqtt_host и mqtt_username
 телеметрия выключена.
 """
@@ -44,7 +44,7 @@ def journal_files(path: Path) -> list[Path]:
 
 
 def pending_events(path: Path, cursor: dict | None) -> list[dict]:
-    """События журнала после курсора ``{"timestamp", "key"}``; без курсора — все."""
+    """События журнала после курсора ``{"timestamp", "key"}``; без курсора - все."""
     records = []
     for file in journal_files(path):
         try:
@@ -149,7 +149,7 @@ class Telemetry:
         sent = 0
         for record in pending_events(self.events_path, self._load_cursor()):
             if not self._publish("event", record):
-                break  # Связи нет: остальное — в следующий раз, с этого же места.
+                break  # Связи нет: остальное - в следующий раз, с этого же места.
             self._save_cursor(record)
             sent += 1
         if sent:

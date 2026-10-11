@@ -65,7 +65,7 @@ if [ "$(uname -m)" != "aarch64" ]; then
 fi
 
 # ---------- Плата ----------
-# UMKA_BOARD_MODEL подменяет модель платы — для проверки скрипта в контейнере.
+# UMKA_BOARD_MODEL подменяет модель платы - для проверки скрипта в контейнере.
 MODEL="${UMKA_BOARD_MODEL:-$(tr -d '\0' < /proc/device-tree/model 2>/dev/null || true)}"
 MODEL_KEY="$(printf '%s' "$MODEL" | tr '[:upper:]' '[:lower:]' | tr -d ' _-')"
 case "$MODEL_KEY" in
@@ -97,7 +97,7 @@ if [ "$SKIP_SYSTEM" -eq 0 ]; then
     # от доступности зеркал (на выставке сторонний репозиторий висел минутами).
     MISSING=()
     for package in "${PACKAGES[@]}"; do
-        # «install ok installed» или «hold ok installed» — пакет на месте.
+        # «install ok installed» или «hold ok installed» - пакет на месте.
         [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" == *" ok installed" ]] \
             || MISSING+=("$package")
     done
@@ -107,7 +107,7 @@ if [ "$SKIP_SYSTEM" -eq 0 ]; then
         echo "Не хватает: ${MISSING[*]}"
         # Недоступный сторонний источник не должен срывать установку.
         sudo apt-get update -o Acquire::Retries=1 -o Acquire::http::Timeout=20 \
-            -o Acquire::https::Timeout=20 || warn "apt-get update завершился с ошибкой — пробую установить из имеющихся списков."
+            -o Acquire::https::Timeout=20 || warn "apt-get update завершился с ошибкой - пробую установить из имеющихся списков."
         sudo apt-get install -y "${MISSING[@]}"
     fi
 
@@ -129,7 +129,7 @@ if [ "$SKIP_SYSTEM" -eq 0 ]; then
             fi
             ;;
         opi5)
-            # Контакты 3 (SDA) и 5 (SCL) — шина I2C5, оверлей i2c5-m3.
+            # Контакты 3 (SDA) и 5 (SCL) - шина I2C5, оверлей i2c5-m3.
             ENV_FILE=/boot/orangepiEnv.txt
             if [ -e /dev/i2c-5 ]; then
                 echo "/dev/i2c-5 уже есть."
@@ -145,7 +145,7 @@ if [ "$SKIP_SYSTEM" -eq 0 ]; then
                 fi
                 NEED_REBOOT=1
                 if grep -q '^overlays=.*\buart1' "$ENV_FILE"; then
-                    warn "В $ENV_FILE включён UART1 — он занимает те же контакты 3 и 5. Отключите его в sudo orangepi-config."
+                    warn "В $ENV_FILE включён UART1 - он занимает те же контакты 3 и 5. Отключите его в sudo orangepi-config."
                 fi
             else
                 warn "Не найден $ENV_FILE: включите i2c5-m3 через sudo orangepi-config."
@@ -212,7 +212,7 @@ else
             "import torch; torch.nn.Conv2d(3, 8, 3)(torch.rand(1, 3, 64, 64)); print('PyTorch', torch.__version__, 'работает')"; then
         :
     else
-        warn "PyTorch не выполняет свёртку на этом процессоре — см. docs/troubleshooting.md, «Illegal instruction»."
+        warn "PyTorch не выполняет свёртку на этом процессоре - см. docs/troubleshooting.md, «Illegal instruction»."
     fi
 fi
 
@@ -230,7 +230,7 @@ set_conf() {
 step "Параметры запуска $CONF"
 if [ ! -f "$CONF" ]; then
     # PCA9685 отвечает по адресу 0x40. Если шину только что включили, проверить
-    # её до перезагрузки нельзя — тогда считаем, что моторы подключены.
+    # её до перезагрузки нельзя - тогда считаем, что моторы подключены.
     HARDWARE=console
     if [ "$NEED_REBOOT" -eq 1 ]; then
         HARDWARE=pca9685

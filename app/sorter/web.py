@@ -28,7 +28,7 @@ class WebServer:
         self.feedback_handler = feedback_handler
         self.preview = preview
         # (метод, путь) → функция(тело POST или параметры GET) → (HTTP-статус, ответ).
-        # Ответ — словарь для JSON или bytes для JPEG-изображения.
+        # Ответ - словарь для JSON или bytes для JPEG-изображения.
         self.routes = routes or {}
         self._server = None
         self._thread = None
@@ -140,7 +140,7 @@ class WebServer:
                         os.unlink(payload)
                     return
                 if isinstance(payload, bytes):
-                    # Двоичный ответ обработчиков — JPEG-миниатюра.
+                    # Двоичный ответ обработчиков - JPEG-миниатюра.
                     self.send_response(status)
                     self.send_header("Content-Type", "image/jpeg")
                     self.send_header("Content-Length", str(len(payload)))

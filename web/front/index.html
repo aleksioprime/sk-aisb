@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UMKA — мониторинг</title>
+  <title>UMKA - мониторинг</title>
   <style>
     :root { --bg: #062f2f; --card: #0a3d3b; --line: rgba(45, 212, 191, .25); --accent: #2dd4bf;
             --text: #e6fffa; --muted: #9fbfbf; --ok: #22c55e; --off: #ef4444; }
@@ -39,7 +39,7 @@
 
 <body>
   <header>
-    <h1>UMKA — сеть умных мусорок</h1>
+    <h1>UMKA - сеть умных мусорок</h1>
     <span class="muted" id="updated"></span>
     <button class="logout" id="logout" hidden>Выйти</button>
   </header>
@@ -60,9 +60,9 @@
   <script>
     const TYPES = { paper: "Бумага", plastic_aluminum: "Пластик/алюминий", organic: "Органика", non_recyclable: "Несортируемые" };
     const escape = (value) => String(value ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-    const ok = (part) => part ? (part.ok === false ? "✕" : "✓") : "—";
+    const ok = (part) => part ? (part.ok === false ? "✕" : "✓") : "-";
 
-    // Авторизация как в empolimer: access-токен в заголовке, refresh — чтобы
+    // Авторизация как в empolimer: access-токен в заголовке, refresh - чтобы
     // получить новый access, когда старый истёк (30 минут).
     const $ = (id) => document.getElementById(id);
     const tokens = {
@@ -155,7 +155,7 @@
             <td><span class="dot" style="background:${d.online ? "var(--ok)" : "var(--off)"}"></span>${d.online ? "онлайн" : "нет связи"}
               <br><span class="muted">${escape(seen)}</span></td>
             <td class="wide">${ok(s.camera)} / ${ok(s.model)} / ${ok(s.hardware)} ${escape(s.hardware?.driver || "")}</td>
-            <td>${escape(s.stats?.total_items ?? "—")}</td></tr>`;
+            <td>${escape(s.stats?.total_items ?? "-")}</td></tr>`;
         }).join("") : `<tr><td colspan="4" class="muted">Устройства ещё не присылали данных</td></tr>`;
         document.getElementById("updated").textContent = `обновлено ${new Date().toLocaleTimeString("ru-RU")}`;
       } catch (error) {

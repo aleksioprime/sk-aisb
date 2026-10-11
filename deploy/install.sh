@@ -11,7 +11,7 @@
 #      устройства не трогаются, удалённые из репозитория файлы удаляются);
 #   2. запускает на устройстве deploy/setup_device.sh: системные пакеты, I2C,
 #      группы, Python-окружение с PyTorch под эту плату, umka.conf, ярлыки,
-#      по флагу — автозапуск.
+#      по флагу - автозапуск.
 #
 # Параметры компьютера:
 #   --dest DIR        каталог на устройстве относительно домашнего (по умолчанию app)
@@ -84,7 +84,7 @@ if [ "$DRY_RUN" -eq 0 ]; then
     remote 'echo "$(uname -n): $(tr -d "\0" < /proc/device-tree/model 2>/dev/null || uname -m)"'
 fi
 
-# rsync есть почти везде; если нет на устройстве — копирование через tar.
+# rsync есть почти везде; если нет на устройстве - копирование через tar.
 sync_dir() {
     local source="$1" target="$2"; shift 2
     if [ "$DRY_RUN" -eq 1 ] || remote 'command -v rsync >/dev/null'; then
@@ -103,7 +103,7 @@ sync_dir "$REPO/app" "$DEST" \
     --exclude=__pycache__/ --exclude='*.pyc' --exclude=.DS_Store
 sync_dir "$REPO/deploy" "$DEST/.deploy" --exclude=.DS_Store --exclude=constraints.txt
 
-# --code-only: без системных пакетов и pip — только umka.conf, ярлыки и перезапуск службы.
+# --code-only: без системных пакетов и pip - только umka.conf, ярлыки и перезапуск службы.
 SETUP_ARGS=(--app-dir "$DEST")
 [ "$CODE_ONLY" -eq 1 ] && SETUP_ARGS+=(--skip-system --skip-python)
 SETUP_ARGS+=(${DEVICE_ARGS[@]+"${DEVICE_ARGS[@]}"})
@@ -113,5 +113,5 @@ step "Настройка устройства"
 run ssh "${SSH_OPTS[@]}" -t "$TARGET" "bash '$DEST/.deploy/setup_device.sh'$(printf ' %q' "${SETUP_ARGS[@]}")"
 
 if [ "$DRY_RUN" -eq 0 ] && remote "pgrep -f '[.]venv/bin/python .*app[.]py' >/dev/null && ! systemctl is-active --quiet umka.service"; then
-    printf '\n\033[1;33m!   UMKA запущена вручную и работает со старым кодом — перезапустите её.\033[0m\n'
+    printf '\n\033[1;33m!   UMKA запущена вручную и работает со старым кодом - перезапустите её.\033[0m\n'
 fi

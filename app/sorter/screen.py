@@ -81,7 +81,7 @@ class ScreenManager:
         return {"saved": self.mode, "output": output}
 
     def set_mode(self, mode: str | None) -> dict:
-        """Применить режим (или None — только перестать его удерживать) и сохранить."""
+        """Применить режим (или None - только перестать его удерживать) и сохранить."""
         if mode is not None:
             output = self._output()
             if output is None:

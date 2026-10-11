@@ -68,16 +68,16 @@ class AppConfig:
     # Чем больше отступы, тем меньше область, в которой ищутся предметы.
 
     # Веб-интерфейс и драйвер физического механизма.
-    web_host: str = "0.0.0.0"  # Слушать все IPv4-интерфейсы; 127.0.0.1 — только сам Pi.
+    web_host: str = "0.0.0.0"  # Слушать все IPv4-интерфейсы; 127.0.0.1 - только сам Pi.
     web_port: int = 3000  # Порт страницы и API: http://<IP_RASPBERRY_PI>:3000.
-    # console — имитация; pca9685 — моторы через I2C; gpiozero — напрямую через GPIO.
+    # console - имитация; pca9685 - моторы через I2C; gpiozero - напрямую через GPIO.
     hardware_driver: str = "console"
     simulate_delay: float = 1.0  # Длительность имитации сброса, секунды; только console.
     pca9685_address: int = 0x40  # I2C-адрес всей платы, а не отдельного мотора.
     tilt_servo_channel: int = 1  # Выход PCA9685 для наклона, номер 0–15.
     rotate_servo_channel: int = 0  # Выход PCA9685 для поворота; отличается от наклона.
     # Эти каналы не являются GPIO-номерами и не меняют проводку драйвера gpiozero.
-    # Номер шины /dev/i2c-N для PCA9685. None — определить автоматически:
+    # Номер шины /dev/i2c-N для PCA9685. None - определить автоматически:
     # Orange Pi 5B получает шину 5, Raspberry Pi оставляет выбор Blinka.
     i2c_bus: int | None = None
 
@@ -96,7 +96,7 @@ class AppConfig:
         "non_recyclable": "section_1",  # Неперерабатываемые и неизвестные классы.
     })
     # Класс → категория для интерфейса и статистики. Не определяет движение моторов.
-    # plastic_aluminum — имя общей категории «Пластик и алюминий» в интерфейсе.
+    # plastic_aluminum - имя общей категории «Пластик и алюминий» в интерфейсе.
     class_to_waste_type: dict[str, str] = field(default_factory=lambda: {
         "paper": "paper",
         "plastic": "plastic_aluminum",

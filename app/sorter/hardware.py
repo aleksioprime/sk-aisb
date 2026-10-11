@@ -20,7 +20,7 @@ CENTER_TILT_ANGLE = 97  # Нейтральный наклон площадки �
 CENTER_ROTATE_ANGLE = 80  # Исходное положение поворота распределителя.
 
 # Углы сброса по физическим отсекам; номер проверяется командой 1–4 в tools/calibrate.py.
-# rotate — сначала повернуть к отсеку; tilt — затем наклонить площадку для сброса.
+# rotate - сначала повернуть к отсеку; tilt - затем наклонить площадку для сброса.
 # После сброса оба мотора возвращаются к CENTER_*_ANGLE.
 # Какой класс попадает в отсек, задаёт AppConfig.class_to_section в config.py.
 # Названия секций сами по себе не обозначают «слева» или «справа».
@@ -31,7 +31,7 @@ ACTIONS = {
     "section_4": {"rotate": 20, "tilt": 145},
 }
 
-# Выключенный мотор обесточивается и не получает команд — например, неисправный.
+# Выключенный мотор обесточивается и не получает команд - например, неисправный.
 # Переключается на странице настроек и хранится вместе с калибровкой.
 MOTORS_ENABLED = {"tilt": True, "rotate": True}
 # Мотор, отпускаемый в центре, после возврата в покой обесточивается: он не держит
@@ -39,7 +39,7 @@ MOTORS_ENABLED = {"tilt": True, "rotate": True}
 MOTORS_RELEASE_AT_REST = {"tilt": False, "rotate": False}
 
 
-# Шина /dev/i2c-5 — контакты 3 (SDA) и 5 (SCL) 26-контактного разъёма Orange Pi 5B.
+# Шина /dev/i2c-5 - контакты 3 (SDA) и 5 (SCL) 26-контактного разъёма Orange Pi 5B.
 ORANGE_PI_5_I2C_BUS = 5
 # Платы с другим разъёмом: у них контакты 3 и 5 относятся к другой шине,
 # поэтому номер 5 им не подставляется и задаётся параметром --i2c-bus.
@@ -85,7 +85,7 @@ def _board_model() -> str:
 
 
 def _is_orange_pi_5() -> bool:
-    """Определить Orange Pi 5 или 5B — платы с одинаковым 26-контактным разъёмом.
+    """Определить Orange Pi 5 или 5B - платы с одинаковым 26-контактным разъёмом.
 
     Образы Orange Pi 5B нередко сообщают о себе просто «Orange Pi 5», поэтому
     различать эти две платы здесь не нужно и не всегда возможно. Orange Pi 5
@@ -100,7 +100,7 @@ def _is_orange_pi_5() -> bool:
 def _resolve_i2c_bus(i2c_bus: int | None) -> int | None:
     """Выбрать номер шины I2C: сначала явная настройка, затем автоопределение.
 
-    i2c_bus — значение --i2c-bus (None означает «определить самостоятельно»).
+    i2c_bus - значение --i2c-bus (None означает «определить самостоятельно»).
     None в ответе оставляет выбор шины библиотеке Blinka: так работает
     Raspberry Pi, где board.I2C() сам находит /dev/i2c-1.
     """
@@ -118,7 +118,7 @@ SERVO_PULSE_RANGE_US = (500, 2500)
 def open_pca9685(address: int = 0x40, i2c_bus: int | None = None):
     """Открыть PCA9685 и вернуть (ServoKit, открытая шина или None).
 
-    i2c_bus — номер шины /dev/i2c-N; None означает автоопределение: Orange Pi 5B
+    i2c_bus - номер шины /dev/i2c-N; None означает автоопределение: Orange Pi 5B
     получает шину 5, на остальных платах шину выбирает библиотека Blinka.
     Шину, если она возвращена, вызывающий код закрывает через deinit().
     """
@@ -147,7 +147,7 @@ def open_pca9685(address: int = 0x40, i2c_bus: int | None = None):
         if not device.exists():
             raise RuntimeError(
                 f"Шина {device} не найдена. Включите I2C: на Raspberry Pi "
-                "через sudo raspi-config, на Orange Pi 5B — оверлеем "
+                "через sudo raspi-config, на Orange Pi 5B - оверлеем "
                 "i2c5-m3 (см. docs/hardware.md; установщик deploy/install.sh "
                 "включает его сам). Другой номер шины задаётся параметром --i2c-bus."
             )
@@ -171,7 +171,7 @@ def open_pca9685(address: int = 0x40, i2c_bus: int | None = None):
             raise RuntimeError(
                 "Не удалось открыть I2C автоматически на плате "
                 f"'{_board_model() or 'неизвестно'}'. Включите I2C (на "
-                "Raspberry Pi — sudo raspi-config) или укажите номер шины "
+                "Raspberry Pi - sudo raspi-config) или укажите номер шины "
                 "параметром --i2c-bus (на Orange Pi 5B это 5), проверив "
                 "её командой i2cdetect -y <номер>."
             ) from exc
@@ -182,7 +182,7 @@ class ConsoleHardware:
     """Имитировать механизм сообщениями в журнале, не обращаясь к GPIO."""
 
     def __init__(self, delay: float = 1.0):
-        """delay — длительность имитации одного сброса в секундах."""
+        """delay - длительность имитации одного сброса в секундах."""
         self.delay = delay
 
     def center(self) -> None:
@@ -260,9 +260,9 @@ class GpioZeroHardware(_ServoSwitch):
                 "python3 -m venv --upgrade --system-site-packages .venv"
             ) from exc
 
-        # min_angle/max_angle — диапазон команд в градусах.
-        # min/max_pulse_width — импульсы для краёв диапазона, в секундах:
-        # 0.0005–0.0025 с = 500–2500 мкс. frame_width=0.02 с — период PWM (50 Гц).
+        # min_angle/max_angle - диапазон команд в градусах.
+        # min/max_pulse_width - импульсы для краёв диапазона, в секундах:
+        # 0.0005–0.0025 с = 500–2500 мкс. frame_width=0.02 с - период PWM (50 Гц).
         options = dict(min_angle=0, max_angle=180, min_pulse_width=0.0005,
                        max_pulse_width=0.0025, frame_width=0.02)
         self.tilt = AngularServo(12, **options)
@@ -326,11 +326,11 @@ class Pca9685Hardware(_ServoSwitch):
     ):
         """Открыть PCA9685 и настроить диапазон импульсов сервоприводов.
 
-        address — I2C-адрес платы; tilt_channel/rotate_channel — разные выходы
-        платы с номерами 0–15. i2c_bus — номер шины /dev/i2c-N; None означает
+        address - I2C-адрес платы; tilt_channel/rotate_channel - разные выходы
+        платы с номерами 0–15. i2c_bus - номер шины /dev/i2c-N; None означает
         автоопределение: Orange Pi 5B получает шину 5, на остальных платах шину
         выбирает сама библиотека Blinka. При запуске UMKA сюда передаются
-        настройки из AppConfig, при калибровке — параметры командной строки
+        настройки из AppConfig, при калибровке - параметры командной строки
         tools/calibrate.py. Сам конструктор PCA9685 не центрирует моторы: вызывающий
         код делает это через center().
         """
@@ -406,9 +406,9 @@ def create_hardware(
 ):
     """Создать выбранный драйвер механизма.
 
-    driver выбирает console, gpiozero или pca9685. simulate_delay — секунды
-    имитации (только console). pca9685_address — адрес платы I2C, tilt_channel
-    и rotate_channel — выходы наклона и поворота, i2c_bus — номер шины
+    driver выбирает console, gpiozero или pca9685. simulate_delay - секунды
+    имитации (только console). pca9685_address - адрес платы I2C, tilt_channel
+    и rotate_channel - выходы наклона и поворота, i2c_bus - номер шины
     /dev/i2c-N или None для автоопределения (только pca9685).
 
     Неизвестные значения заранее отклоняются в ``AppConfig.validate()``, поэтому

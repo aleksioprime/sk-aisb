@@ -4,10 +4,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>УМКА — демонстрация распознавания</title>
+  <title>УМКА - демонстрация распознавания</title>
   <link rel="stylesheet" href="service.css">
   <style>
-    /* Видео занимает основную часть экрана, справа — узкая информационная колонка. */
+    /* Видео занимает основную часть экрана, справа - узкая информационная колонка. */
     .split { grid-template-columns: minmax(0, 1fr) 280px; gap: 12px; }
     @media (max-width: 760px) { .split { grid-template-columns: 1fr; } }
     .side { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow: auto; }
@@ -41,13 +41,13 @@
       <div class="side">
         <div class="card">
           <h2>Модель видит</h2>
-          <div class="seen none" id="seen">—</div>
+          <div class="seen none" id="seen">-</div>
           <div class="meter"><div id="meter"></div></div>
           <p class="hint" id="seen-details"></p>
         </div>
         <div class="card">
           <h2>Состояние</h2>
-          <div class="state" id="state">—</div>
+          <div class="state" id="state">-</div>
           <p class="hint" id="last-action"></p>
         </div>
         <div class="card">
@@ -108,7 +108,7 @@
         seen.classList.add("none");
         element("meter").style.width = "0";
         element("seen-details").textContent = state.platform && state.platform.rejected
-          ? "Модель увидела предмет, но картинка совпадает с пустой площадкой — отсеяно"
+          ? "Модель увидела предмет, но картинка совпадает с пустой площадкой - отсеяно"
           : "На площадке нет предметов";
       }
 
@@ -117,7 +117,7 @@
 
       const platform = state.platform;
       if (!platform || !platform.reference) {
-        element("platform").textContent = "Снимков пустой площадки нет — фильтр выключен";
+        element("platform").textContent = "Снимков пустой площадки нет - фильтр выключен";
       } else if (platform.difference === null) {
         element("platform").textContent = `Снимков в наборе: ${platform.references} · порог разницы ${platform.threshold}`;
       } else {

@@ -1,4 +1,4 @@
-name: Web — сборка и деплой в Coolify
+name: Web - сборка и деплой в Coolify
 
 run-name: "Сборка образов мониторинга UMKA (${{ github.ref_name }}, ${{ github.actor }})"
 
@@ -55,7 +55,7 @@ jobs:
           build "$WORKER_IMAGE" -f web/worker/Dockerfile web
           build "$FRONTEND_IMAGE" web/front
 
-      # Теги образов в Coolify — текущий коммит, чтобы деплой взял именно эту сборку.
+      # Теги образов в Coolify - текущий коммит, чтобы деплой взял именно эту сборку.
       - name: Теги образов в Coolify
         continue-on-error: true
         env:

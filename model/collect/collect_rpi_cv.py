@@ -23,9 +23,9 @@ def main():
     time.sleep(1.0)
 
     if headless:
-        print("HEADLESS: Enter в консоли — сделать снимок. Ctrl+C — выход.")
+        print("HEADLESS: Enter в консоли - сделать снимок. Ctrl+C - выход.")
     else:
-        print("Enter в окне — сделать снимок, q — выход.")
+        print("Enter в окне - сделать снимок, q - выход.")
 
     try:
         while True:

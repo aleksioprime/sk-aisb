@@ -75,7 +75,7 @@ def main(argv=None) -> int:
     print(f"Камера {device}: {width}×{height}, кадров {received}/{args.frames}, "
           f"≈{received / elapsed:.1f} кадр/с")
     print(f"Средняя яркость {gray.mean():.0f} из 255, пересвечено {overexposed:.1f}% пикселей"
-          + (" — много бликов: уменьшите яркость, контраст или гамму" if overexposed > 5 else ""))
+          + (" - много бликов: уменьшите яркость, контраст или гамму" if overexposed > 5 else ""))
     print(f"Снимок: {args.output}")
 
     controls = CameraControls(APP_DIR / "data" / "camera_controls.json")

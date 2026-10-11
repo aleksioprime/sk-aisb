@@ -22,7 +22,7 @@ async def lifespan(_app):
 
 app = FastAPI(title="UMKA monitoring", lifespan=lifespan)
 app.include_router(auth_router)
-# Данные устройств — только для вошедших пользователей; /api/health открыт для Coolify.
+# Данные устройств - только для вошедших пользователей; /api/health открыт для Coolify.
 protected = [Depends(current_user)]
 ONLINE_WINDOW = timedelta(minutes=3)  # Статус приходит раз в минуту.
 

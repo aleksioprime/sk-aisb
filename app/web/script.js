@@ -176,11 +176,11 @@ function renderDevDebug(data) {
   devDebugData.textContent = [
     `автомат: ${data.controllerState}`,
     `видит: ${detection}`,
-    `пустая площадка: снимков ${platform.references ?? 0}, разница ${platform.difference ?? "—"}` +
+    `пустая площадка: снимков ${platform.references ?? 0}, разница ${platform.difference ?? "-"}` +
       (platform.rejected ? " → отсеяно" : ""),
-    `моторы: ${data.hardware?.driver || "—"} · ${data.hardware?.message || ""}`,
+    `моторы: ${data.hardware?.driver || "-"} · ${data.hardware?.message || ""}`,
     `экран: ${data.display?.confirm === false ? "без подтверждения" : "с подтверждением"}`,
-    `последнее: ${data.lastAction || "—"}`,
+    `последнее: ${data.lastAction || "-"}`,
     `всего: ${data.totalCount ?? 0} шт · ${data.totalWeight ?? 0} кг`,
     data.error ? `ошибка: ${data.error}` : "",
   ].filter(Boolean).join("\n");
@@ -478,7 +478,7 @@ function updateUI(data) {
   const modelText = data.model?.ok
     ? "модель готова"
     : `модель: ${data.model?.message || "ошибка"}`;
-  diagnostics.textContent = `${cameraText} · ${modelText} · режим: ${data.hardware?.driver || "—"}`;
+  diagnostics.textContent = `${cameraText} · ${modelText} · режим: ${data.hardware?.driver || "-"}`;
   renderDevDebug(data);
   diagnostics.classList.toggle(
     "has-error",

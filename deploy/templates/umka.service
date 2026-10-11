@@ -1,5 +1,5 @@
 # Служба UMKA. @APP_DIR@ и @USER@ подставляет deploy/setup_device.sh.
-# Параметры запуска (драйвер, каналы моторов, камера) — в @APP_DIR@/umka.conf.
+# Параметры запуска (драйвер, каналы моторов, камера) - в @APP_DIR@/umka.conf.
 [Unit]
 Description=UMKA smart waste sorter
 After=network.target

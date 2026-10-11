@@ -1,8 +1,8 @@
 """Принимать сообщения устройств UMKA из MQTT и сохранять в PostgreSQL.
 
-Топики: umka/<device_id>/status — состояние устройства (раз в минуту, retain);
-        umka/<device_id>/event  — событие сортировки или ответа (QoS 1).
-Формат сообщений — web/README.md.
+Топики: umka/<device_id>/status - состояние устройства (раз в минуту, retain);
+        umka/<device_id>/event  - событие сортировки или ответа (QoS 1).
+Формат сообщений - web/README.md.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ LOG = logging.getLogger("worker")
 
 
 def parse_time(value) -> datetime:
-    """ISO-время устройства; без него — время приёма."""
+    """ISO-время устройства; без него - время приёма."""
     try:
         return datetime.fromisoformat(value)
     except (TypeError, ValueError):

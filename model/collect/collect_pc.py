@@ -11,12 +11,12 @@ def center_crop_to_aspect(frame, target_w, target_h):
     cur_aspect = w / h
 
     if cur_aspect > target_aspect:
-        # слишком широко — режем по ширине
+        # слишком широко - режем по ширине
         new_w = int(h * target_aspect)
         x1 = (w - new_w) // 2
         return frame[:, x1:x1 + new_w]
     else:
-        # слишком высоко — режем по высоте
+        # слишком высоко - режем по высоте
         new_h = int(w / target_aspect)
         y1 = (h - new_h) // 2
         return frame[y1:y1 + new_h, :]
