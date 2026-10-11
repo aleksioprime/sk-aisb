@@ -12,6 +12,26 @@ docker compose up -d --build
 curl localhost:8300/api/devices
 ```
 
+Локально страница мониторинга — <http://localhost:8301>, API — <http://localhost:8300>.
+
+## Продакшн (Coolify)
+
+Адрес: **https://umka.technocrew.ru**. Схема как у empolimer:
+
+1. При пуше в `main` с изменениями в `web/` workflow
+   [web.yml](../.github/workflows/web.yml) собирает образы `umka-backend`,
+   `umka-worker`, `umka-frontend`, публикует их в GHCR, выставляет теги
+   `*_IMAGE_TAG` в Coolify и запускает деплой.
+2. Coolify разворачивает [docker-compose.prod.yaml](docker-compose.prod.yaml)
+   (приложение из репозитория, сборка Docker Compose, базовый каталог `/web`).
+   Домен и TLS — на стороне Coolify, наружу смотрит только `frontend` (порт 80).
+3. Брокер MQTT — общий сервис в сети `iot`; worker подключается к нему по
+   `MQTT_HOST`. Пароль PostgreSQL Coolify генерирует сам.
+
+Переменные в Coolify: `MQTT_HOST`, `MQTT_PORT`, `MQTT_USERNAME`, `MQTT_PASSWORD`
+(брокер), остальное по умолчанию. Секреты GitHub: `COOLIFY_API`
+(`https://devops.skeducator.ru/api/v1`), `COOLIFY_TOKEN`, `COOLIFY_APP` (UUID приложения).
+
 ## Формат сообщений
 
 | Топик | QoS | Когда | Содержимое |

@@ -45,6 +45,14 @@ services:
       postgres:
         condition: service_healthy
 
+  frontend:
+    build: ./front
+    <<: *app
+    ports:
+      - "8301:80"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
   mosquitto_data:

@@ -1,0 +1,82 @@
+name: Web — сборка и деплой в Coolify
+
+run-name: "Сборка образов мониторинга UMKA (${{ github.ref_name }}, ${{ github.actor }})"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'web/**'
+      - '.github/workflows/web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  BACKEND_IMAGE: ghcr.io/${{ github.repository_owner }}/umka-backend
+  WORKER_IMAGE: ghcr.io/${{ github.repository_owner }}/umka-worker
+  FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/umka-frontend
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Проверка синтаксиса Python
+        run: python -m py_compile web/shared/db.py web/worker/main.py web/backend/main.py
+
+      - name: Вход в GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # Бэкенд и воркер собираются из каталога web/: им нужен общий пакет shared/.
+      - name: Сборка и публикация образов
+        run: |
+          build() {
+            image="$1"; shift
+            docker build \
+              --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+              -t "$image:latest" -t "$image:${{ github.sha }}" "$@"
+            docker push "$image:latest"
+            docker push "$image:${{ github.sha }}"
+          }
+          build "$BACKEND_IMAGE" -f web/backend/Dockerfile web
+          build "$WORKER_IMAGE" -f web/worker/Dockerfile web
+          build "$FRONTEND_IMAGE" web/front
+
+      # Теги образов в Coolify — текущий коммит, чтобы деплой взял именно эту сборку.
+      - name: Теги образов в Coolify
+        continue-on-error: true
+        env:
+          COOLIFY_API: ${{ secrets.COOLIFY_API }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_APP: ${{ secrets.COOLIFY_APP }}
+        run: |
+          curl -sS --fail -X PATCH \
+            -H "Authorization: Bearer $COOLIFY_TOKEN" \
+            -H "Content-Type: application/json" \
+            "$COOLIFY_API/applications/$COOLIFY_APP/envs/bulk" \
+            -d "{\"data\":[{\"key\":\"BACKEND_IMAGE_TAG\",\"value\":\"${{ github.sha }}\"},{\"key\":\"WORKER_IMAGE_TAG\",\"value\":\"${{ github.sha }}\"},{\"key\":\"FRONTEND_IMAGE_TAG\",\"value\":\"${{ github.sha }}\"}]}" \
+          || echo "::warning::Не удалось обновить теги образов в Coolify"
+
+      - name: Деплой в Coolify
+        continue-on-error: true
+        env:
+          COOLIFY_API: ${{ secrets.COOLIFY_API }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_APP: ${{ secrets.COOLIFY_APP }}
+        run: |
+          curl -sS --fail -X POST "$COOLIFY_API/deploy?uuid=$COOLIFY_APP&force=true" \
+            -H "Authorization: Bearer $COOLIFY_TOKEN" \
+          || echo "::warning::Не удалось запустить деплой в Coolify"

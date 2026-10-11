@@ -1,0 +1,75 @@
+# Продакшн в Coolify: образы собирает GitHub Actions (.github/workflows/web.yml)
+# и кладёт в GHCR. Домен и TLS — на стороне Coolify, наружу смотрит только frontend (порт 80).
+# Брокер MQTT — общий сервис в сети iot (как у empolimer), worker подключается к нему по MQTT_HOST.
+# Пользователя и пароль PostgreSQL Coolify генерирует сам (SERVICE_USER_* / SERVICE_PASSWORD_*).
+x-app: &app
+  restart: unless-stopped
+
+x-db: &db
+  DATABASE_URL: postgresql+asyncpg://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@postgres:5432/${POSTGRES_DB:-umka}
+  TZ: ${TZ:-Europe/Moscow}
+
+services:
+  postgres:
+    image: postgres:16
+    <<: *app
+    environment:
+      POSTGRES_USER: ${SERVICE_USER_POSTGRES}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
+      POSTGRES_DB: ${POSTGRES_DB:-umka}
+      TZ: ${TZ:-Europe/Moscow}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_volume:/var/lib/postgresql/data/
+
+  backend:
+    image: ghcr.io/aleksioprime/umka-backend:${BACKEND_IMAGE_TAG:-latest}
+    pull_policy: always
+    <<: *app
+    environment:
+      <<: *db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    image: ghcr.io/aleksioprime/umka-worker:${WORKER_IMAGE_TAG:-latest}
+    pull_policy: always
+    <<: *app
+    environment:
+      <<: *db
+      MQTT_HOST: ${MQTT_HOST}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
+      MQTT_TOPIC: ${MQTT_TOPIC:-umka/+/+}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - default
+      - iot
+
+  frontend:
+    image: ghcr.io/aleksioprime/umka-frontend:${FRONTEND_IMAGE_TAG:-latest}
+    pull_policy: always
+    <<: *app
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_volume:
+
+networks:
+  iot:
+    external: true

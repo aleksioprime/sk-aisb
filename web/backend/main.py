@@ -19,6 +19,14 @@ def device_view(device: Device) -> dict:
             "lastSeen": device.last_seen, "status": device.status}
 
 
+@app.get("/api/health")
+async def health() -> dict:
+    """Проверка для Docker и Coolify: API отвечает и база доступна."""
+    async with Session() as session:
+        await session.execute(select(1))
+    return {"ok": True}
+
+
 @app.get("/api/devices")
 async def devices() -> list[dict]:
     async with Session() as session:

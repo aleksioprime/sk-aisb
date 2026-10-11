@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UMKA — мониторинг</title>
+  <style>
+    :root { --bg: #062f2f; --card: #0a3d3b; --line: rgba(45, 212, 191, .25); --accent: #2dd4bf;
+            --text: #e6fffa; --muted: #9fbfbf; --ok: #22c55e; --off: #ef4444; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; }
+    header { padding: 16px; border-bottom: 1px solid var(--line); display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: 22px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+    .card b { display: block; font-size: 26px; color: var(--accent); }
+    .card span { color: var(--muted); font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); font-size: 14px; }
+    th { color: var(--muted); font-weight: normal; }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+    .muted { color: var(--muted); }
+    @media (max-width: 700px) { .wide { display: none; } }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>UMKA — сеть умных мусорок</h1>
+    <span class="muted" id="updated">Загрузка…</span>
+  </header>
+  <main>
+    <div class="summary" id="summary"></div>
+    <table>
+      <thead><tr><th>Устройство</th><th>Связь</th><th class="wide">Камера / модель / моторы</th><th>Отсортировано</th></tr></thead>
+      <tbody id="devices"></tbody>
+    </table>
+  </main>
+  <script>
+    const TYPES = { paper: "Бумага", plastic_aluminum: "Пластик/алюминий", organic: "Органика", non_recyclable: "Несортируемые" };
+    const escape = (value) => String(value ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    const ok = (part) => part ? (part.ok === false ? "✕" : "✓") : "—";
+
+    async function refresh() {
+      try {
+        const [devices, summary] = await Promise.all([
+          fetch("/api/devices").then((r) => r.json()), fetch("/api/summary").then((r) => r.json())]);
+        const online = devices.filter((d) => d.online).length;
+        const cards = [[summary.devices, "устройств"], [online, "на связи"],
+          ...Object.entries(summary.sortedByType).map(([type, count]) => [count, TYPES[type] || type])];
+        document.getElementById("summary").innerHTML = cards.map(([value, label]) =>
+          `<div class="card"><b>${escape(value)}</b><span>${escape(label)}</span></div>`).join("");
+        document.getElementById("devices").innerHTML = devices.length ? devices.map((d) => {
+          const s = d.status || {};
+          const seen = d.lastSeen ? new Date(d.lastSeen).toLocaleString("ru-RU") : "никогда";
+          return `<tr><td>${escape(d.name || d.id)}<br><span class="muted">${escape(d.id)}</span></td>
+            <td><span class="dot" style="background:${d.online ? "var(--ok)" : "var(--off)"}"></span>${d.online ? "онлайн" : "нет связи"}
+              <br><span class="muted">${escape(seen)}</span></td>
+            <td class="wide">${ok(s.camera)} / ${ok(s.model)} / ${ok(s.hardware)} ${escape(s.hardware?.driver || "")}</td>
+            <td>${escape(s.stats?.total_items ?? "—")}</td></tr>`;
+        }).join("") : `<tr><td colspan="4" class="muted">Устройства ещё не присылали данных</td></tr>`;
+        document.getElementById("updated").textContent = `обновлено ${new Date().toLocaleTimeString("ru-RU")}`;
+      } catch (error) {
+        document.getElementById("updated").textContent = "нет связи с сервером";
+      }
+    }
+    refresh();
+    setInterval(refresh, 10000);
+  </script>
+</body>
+
+</html>
