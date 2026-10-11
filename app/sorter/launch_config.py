@@ -10,6 +10,15 @@
     rotate_channel = 0
     camera = 0
     # i2c_bus = 5
+
+    # Телеметрия на сервер мониторинга (sorter/telemetry.py)
+    device_id = opi-expo
+    device_name = Выставка
+    mqtt_host = mqtt.technocrew.ru
+    mqtt_port = 8883
+    mqtt_tls = yes
+    mqtt_username = umka
+    mqtt_password = ...
 """
 
 from __future__ import annotations
@@ -23,6 +32,16 @@ LOG = logging.getLogger(__name__)
 APP_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_PATH = APP_DIR / "umka.conf"
 
+def parse_bool(value: str) -> bool:
+    """yes/no, true/false, on/off, 1/0."""
+    normalized = value.strip().lower()
+    if normalized in {"yes", "true", "on", "1"}:
+        return True
+    if normalized in {"no", "false", "off", "0"}:
+        return False
+    raise ValueError(value)
+
+
 # Ключ файла → преобразование значения.
 FIELDS = {
     "hardware": str,
@@ -31,6 +50,13 @@ FIELDS = {
     "rotate_channel": int,
     "i2c_bus": int,
     "pca9685_address": lambda value: int(value, 0),
+    "device_id": str,
+    "device_name": str,
+    "mqtt_host": str,
+    "mqtt_port": int,
+    "mqtt_tls": parse_bool,
+    "mqtt_username": str,
+    "mqtt_password": str,
 }
 
 

@@ -7,7 +7,7 @@ import queue
 import threading
 import time
 
-from . import calibration
+from . import calibration, launch_config
 from .background import EmptyPlatformFilter
 from .camera import UsbCamera
 from .camera_controls import CameraControls
@@ -22,6 +22,7 @@ from .preview import FramePreview
 from .screen import ScreenManager
 from .state import StateStore
 from .statistics import StatisticsStore
+from .telemetry import Telemetry
 from .web import WebServer
 
 
@@ -57,6 +58,8 @@ class UmkaApplication:
         self.display = DisplaySettings(config.display_path)
         self.dataset = DatasetCollector(config.dataset_dir, config.dataset_settings_path)
         self.screen = ScreenManager(config.screen_path)
+        self.telemetry = Telemetry(launch_config.load(), self.state, config.events_path,
+                                   config.telemetry_cursor_path)
         # Главный экран получает настройки вместе с остальным состоянием.
         self.state.update(display=dict(self.display.values))
         self.platform = EmptyPlatformFilter(
@@ -283,6 +286,7 @@ class UmkaApplication:
         calibration.load(self.config.calibration_path)
         self.web.start()
         self.screen.start()
+        self.telemetry.start()
         try:
             # Сервер запускается первым, чтобы на странице были видны ошибки
             # последующей инициализации модели, GPIO или камеры.
@@ -455,6 +459,7 @@ class UmkaApplication:
         """Остановить фоновые компоненты и освободить аппаратные ресурсы."""
         self.stop_event.set()
         self.screen.close()
+        self.telemetry.close()
         if self.camera:
             self.camera.close()
         if self.hardware:

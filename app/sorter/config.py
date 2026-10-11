@@ -36,6 +36,7 @@ class AppConfig:
     dataset_dir: Path = BASE_DIR / "data" / "dataset"  # Кадры для дообучения модели.
     dataset_settings_path: Path = BASE_DIR / "data" / "dataset.json"  # Сбор включён и лимит места.
     screen_path: Path = BASE_DIR / "data" / "screen.json"  # Режим дисплея, который держит UMKA.
+    telemetry_cursor_path: Path = BASE_DIR / "data" / "telemetry.json"  # Последнее отправленное событие.
     crop_path: Path = BASE_DIR / "data" / "crop.json"  # Область распознавания со страницы настроек.
     static_dir: Path = BASE_DIR / "web"  # HTML, CSS, JavaScript и картинки интерфейса.
 

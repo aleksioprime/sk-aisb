@@ -27,6 +27,8 @@ curl localhost:8300/api/devices
    Домен и TLS — на стороне Coolify, наружу смотрит только `frontend` (порт 80).
 3. Брокер MQTT — общий сервис в сети `iot`; worker подключается к нему по
    `MQTT_HOST`. Пароль PostgreSQL Coolify генерирует сам.
+4. Устройства подключаются к брокеру снаружи: `mqtt.technocrew.ru:8883`, TLS
+   (Traefik), пользователь `umka`.
 
 Переменные в Coolify: `MQTT_HOST`, `MQTT_PORT`, `MQTT_USERNAME`, `MQTT_PASSWORD`
 (брокер), остальное по умолчанию. Секреты GitHub: `COOLIFY_API`
@@ -54,10 +56,6 @@ curl localhost:8300/api/devices
 
 ## Дальше
 
-- **Устройство:** модуль `app/sorter/telemetry.py` — клиент MQTT (`paho-mqtt`)
-  с адресом сервера и `device_id` в `umka.conf`; события читать из
-  `events.jsonl` с сохранённой позицией, чтобы после пропадания сети
-  догружать пропущенное.
 - **Сервер:** миграции Alembic вместо `create_all`, авторизация устройств
   (пароли Mosquitto на каждое устройство), WebSocket для живого обновления.
 - **Фронтенд** (`web/front`, Vue + Vite, как в empolimer): карта и список

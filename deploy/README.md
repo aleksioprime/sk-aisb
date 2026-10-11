@@ -105,6 +105,19 @@ camera = 0
 Изменить можно установщиком (`--tilt-channel 0` и т. п.) или вручную на плате,
 затем перезапустить UMKA.
 
+Телеметрия на сервер мониторинга (https://umka.technocrew.ru) включается
+строками в том же файле; без `mqtt_username` она выключена:
+
+```ini
+device_id = opi-expo          # латиница, уникально для каждого устройства
+device_name = Выставка
+mqtt_host = mqtt.technocrew.ru
+mqtt_port = 8883
+mqtt_tls = yes
+mqtt_username = umka
+mqtt_password = <пароль пользователя umka в брокере>
+```
+
 ## Запуск и остановка
 
 **Служба** (после `--autostart`):
