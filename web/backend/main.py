@@ -4,12 +4,26 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import func, select, text
 
-from shared.db import Device, Event, Session
+from auth import current_user, router as auth_router
+from shared.db import Device, Event, Session, create_tables
 
-app = FastAPI(title="UMKA monitoring")
+
+@asynccontextmanager
+async def lifespan(_app):
+    # Таблицы пользователей нужны API сразу, даже если worker ещё не запускался.
+    await create_tables()
+    yield
+
+
+app = FastAPI(title="UMKA monitoring", lifespan=lifespan)
+app.include_router(auth_router)
+# Данные устройств — только для вошедших пользователей; /api/health открыт для Coolify.
+protected = [Depends(current_user)]
 ONLINE_WINDOW = timedelta(minutes=3)  # Статус приходит раз в минуту.
 
 
@@ -27,14 +41,14 @@ async def health() -> dict:
     return {"ok": True}
 
 
-@app.get("/api/devices")
+@app.get("/api/devices", dependencies=protected)
 async def devices() -> list[dict]:
     async with Session() as session:
         result = await session.scalars(select(Device).order_by(Device.id))
         return [device_view(device) for device in result]
 
 
-@app.get("/api/devices/{device_id}")
+@app.get("/api/devices/{device_id}", dependencies=protected)
 async def device(device_id: str) -> dict:
     async with Session() as session:
         item = await session.get(Device, device_id)
@@ -43,7 +57,7 @@ async def device(device_id: str) -> dict:
         return device_view(item)
 
 
-@app.get("/api/devices/{device_id}/events")
+@app.get("/api/devices/{device_id}/events", dependencies=protected)
 async def events(device_id: str, limit: int = 100) -> list[dict]:
     async with Session() as session:
         result = await session.scalars(
@@ -52,7 +66,7 @@ async def events(device_id: str, limit: int = 100) -> list[dict]:
         return [{"eventId": e.event_id, "kind": e.kind, "timestamp": e.timestamp, **e.payload} for e in result]
 
 
-@app.get("/api/summary")
+@app.get("/api/summary", dependencies=protected)
 async def summary() -> dict:
     """Сводка по сети: устройства и сортировки по типам отходов."""
     async with Session() as session:

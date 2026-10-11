@@ -34,6 +34,30 @@ curl localhost:8300/api/devices
 (брокер), остальное по умолчанию. Секреты GitHub: `COOLIFY_API`
 (`https://devops.skeducator.ru/api/v1`), `COOLIFY_TOKEN`, `COOLIFY_APP` (UUID приложения).
 
+## Вход на сайт
+
+Как в empolimer: пара JWT — access (30 минут, заголовок `Authorization: Bearer`)
+и refresh (30 дней; при выходе отзывается). Данные устройств отдаются только
+вошедшим, открыт лишь `/api/health`. Секрет подписи `JWT_SECRET_KEY` в Coolify
+генерируется сам (`SERVICE_PASSWORD_64_JWT`).
+
+Пользователя создаёт скрипт (пароль спрашивается дважды; повторный запуск
+меняет пароль, `--disable` отключает пользователя):
+
+```bash
+# Coolify: приложение umka → Terminal → контейнер backend
+python create_user.py admin --admin
+# локально
+docker compose exec backend python create_user.py admin --admin
+```
+
+| Путь | Что делает |
+| --- | --- |
+| `POST /api/auth/login` | логин и пароль → `access_token`, `refresh_token` |
+| `POST /api/auth/refresh` | `refresh_token` → новый `access_token` |
+| `POST /api/auth/logout` | отзывает `refresh_token` |
+| `GET /api/auth/me` | текущий пользователь |
+
 ## Формат сообщений
 
 | Топик | QoS | Когда | Содержимое |
@@ -46,6 +70,8 @@ curl localhost:8300/api/devices
 `(device_id, event_id, event)` сервер отбрасывает.
 
 ## API
+
+Все пути ниже требуют входа (см. выше).
 
 | Путь | Что отдаёт |
 | --- | --- |

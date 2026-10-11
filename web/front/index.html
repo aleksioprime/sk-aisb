@@ -23,15 +23,34 @@
     .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
     .muted { color: var(--muted); }
     @media (max-width: 700px) { .wide { display: none; } }
+    .login { max-width: 340px; margin: 12vh auto; }
+    .login h2 { margin: 0 0 16px; }
+    .login input { width: 100%; margin-bottom: 10px; padding: 10px 12px; border-radius: 10px; font: inherit;
+                   border: 1px solid var(--line); background: #062f2f; color: var(--text); }
+    .login button, .logout { padding: 10px 16px; border: 0; border-radius: 10px; font: inherit; cursor: pointer;
+                             background: var(--accent); color: #062f2f; font-weight: bold; }
+    .login button { width: 100%; }
+    .logout { margin-left: auto; padding: 6px 12px; background: transparent; color: var(--accent);
+              border: 1px solid var(--line); font-weight: normal; }
+    .error { color: #fca5a5; min-height: 1.2em; margin: 8px 0 0; }
+    [hidden] { display: none !important; }
   </style>
 </head>
 
 <body>
   <header>
     <h1>UMKA — сеть умных мусорок</h1>
-    <span class="muted" id="updated">Загрузка…</span>
+    <span class="muted" id="updated"></span>
+    <button class="logout" id="logout" hidden>Выйти</button>
   </header>
-  <main>
+  <form class="login card" id="login" hidden>
+    <h2>Вход</h2>
+    <input id="username" autocomplete="username" placeholder="Логин" required>
+    <input id="password" type="password" autocomplete="current-password" placeholder="Пароль" required>
+    <button type="submit">Войти</button>
+    <p class="error" id="login-error"></p>
+  </form>
+  <main id="dashboard" hidden>
     <div class="summary" id="summary"></div>
     <table>
       <thead><tr><th>Устройство</th><th>Связь</th><th class="wide">Камера / модель / моторы</th><th>Отсортировано</th></tr></thead>
@@ -43,10 +62,87 @@
     const escape = (value) => String(value ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
     const ok = (part) => part ? (part.ok === false ? "✕" : "✓") : "—";
 
-    async function refresh() {
+    // Авторизация как в empolimer: access-токен в заголовке, refresh — чтобы
+    // получить новый access, когда старый истёк (30 минут).
+    const $ = (id) => document.getElementById(id);
+    const tokens = {
+      get access() { return localStorage.getItem("umka-access"); },
+      get refresh() { return localStorage.getItem("umka-refresh"); },
+      save(data) {
+        if (data.access_token) localStorage.setItem("umka-access", data.access_token);
+        if (data.refresh_token) localStorage.setItem("umka-refresh", data.refresh_token);
+      },
+      clear() { localStorage.removeItem("umka-access"); localStorage.removeItem("umka-refresh"); },
+    };
+
+    async function renewAccess() {
+      if (!tokens.refresh) return false;
+      const response = await fetch("/api/auth/refresh", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: tokens.refresh }),
+      });
+      if (!response.ok) return false;
+      tokens.save(await response.json());
+      return true;
+    }
+
+    async function api(path) {
+      const call = () => fetch(path, { headers: { Authorization: `Bearer ${tokens.access}` } });
+      let response = await call();
+      if (response.status === 401 && await renewAccess()) response = await call();
+      if (response.status === 401) { showLogin(); throw new Error("Нужен вход"); }
+      return response.json();
+    }
+
+    function showLogin(message = "") {
+      tokens.clear();
+      $("dashboard").hidden = true;
+      $("logout").hidden = true;
+      $("login").hidden = false;
+      $("updated").textContent = "";
+      $("login-error").textContent = message;
+    }
+
+    async function showDashboard() {
+      $("login").hidden = true;
+      $("dashboard").hidden = false;
+      $("logout").hidden = false;
       try {
-        const [devices, summary] = await Promise.all([
-          fetch("/api/devices").then((r) => r.json()), fetch("/api/summary").then((r) => r.json())]);
+        const me = await api("/api/auth/me");
+        $("logout").textContent = `Выйти (${me.username})`;
+      } catch (error) { return; }
+      refresh();
+    }
+
+    $("login").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const response = await fetch("/api/auth/login", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: $("username").value, password: $("password").value }),
+      });
+      if (!response.ok) {
+        $("login-error").textContent = "Неверный логин или пароль";
+        return;
+      }
+      tokens.save(await response.json());
+      $("password").value = "";
+      showDashboard();
+    });
+
+    $("logout").addEventListener("click", async () => {
+      if (tokens.refresh) {
+        await fetch("/api/auth/logout", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: tokens.refresh }),
+        }).catch(() => {});
+      }
+      showLogin();
+    });
+
+    async function refresh() {
+      if ($("dashboard").hidden) return;
+      try {
+        const [devices, summary] = await Promise.all([api("/api/devices"), api("/api/summary")]);
         const online = devices.filter((d) => d.online).length;
         const cards = [[summary.devices, "устройств"], [online, "на связи"],
           ...Object.entries(summary.sortedByType).map(([type, count]) => [count, TYPES[type] || type])];
@@ -63,10 +159,10 @@
         }).join("") : `<tr><td colspan="4" class="muted">Устройства ещё не присылали данных</td></tr>`;
         document.getElementById("updated").textContent = `обновлено ${new Date().toLocaleTimeString("ru-RU")}`;
       } catch (error) {
-        document.getElementById("updated").textContent = "нет связи с сервером";
+        if (!$("dashboard").hidden) $("updated").textContent = "нет связи с сервером";
       }
     }
-    refresh();
+    if (tokens.refresh) showDashboard(); else showLogin();
     setInterval(refresh, 10000);
   </script>
 </body>

@@ -32,6 +32,8 @@ services:
     <<: *app
     environment:
       <<: *db
+      # Секрет подписи токенов Coolify генерирует сам (64 символа).
+      JWT_SECRET_KEY: ${SERVICE_PASSWORD_64_JWT}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 10s
