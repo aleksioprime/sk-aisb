@@ -14,7 +14,7 @@
     # Телеметрия на сервер мониторинга (sorter/telemetry.py)
     device_id = opi-expo
     device_name = Выставка
-    mqtt_host = mqtt.technocrew.ru
+    mqtt_host = mqtt.skolhub.ru
     mqtt_port = 8883
     mqtt_tls = yes
     mqtt_username = umka

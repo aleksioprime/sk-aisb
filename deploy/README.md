@@ -111,7 +111,7 @@ camera = 0
 ```ini
 device_id = opi-expo          # латиница, уникально для каждого устройства
 device_name = Выставка
-mqtt_host = mqtt.technocrew.ru
+mqtt_host = mqtt.skolhub.ru
 mqtt_port = 8883
 mqtt_tls = yes
 mqtt_username = umka

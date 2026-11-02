@@ -25,14 +25,15 @@ curl localhost:8300/api/devices
 2. Coolify разворачивает [docker-compose.prod.yaml](docker-compose.prod.yaml)
    (приложение из репозитория, сборка Docker Compose, базовый каталог `/web`).
    Домен и TLS - на стороне Coolify, наружу смотрит только `frontend` (порт 80).
-3. Брокер MQTT - общий сервис в сети `iot`; worker подключается к нему по
-   `MQTT_HOST`. Пароль PostgreSQL Coolify генерирует сам.
-4. Устройства подключаются к брокеру снаружи: `mqtt.technocrew.ru:8883`, TLS
+3. Брокер MQTT - общий сервис гимназии на соседнем сервере (`skl-web-app`).
+   Worker подключается к нему внутри DMZ по `MQTT_HOST=10.3.34.50`,
+   `MQTT_PORT=1883` под пользователем `umka`. Пароль PostgreSQL Coolify генерирует сам.
+4. Устройства подключаются к брокеру снаружи: `mqtt.skolhub.ru:8883`, TLS
    (Traefik), пользователь `umka`.
 
 Переменные в Coolify: `MQTT_HOST`, `MQTT_PORT`, `MQTT_USERNAME`, `MQTT_PASSWORD`
 (брокер), остальное по умолчанию. Секреты GitHub: `COOLIFY_API`
-(`https://devops.skeducator.ru/api/v1`), `COOLIFY_TOKEN`, `COOLIFY_APP` (UUID приложения).
+(`https://devops.skolhub.ru/api/v1`), `COOLIFY_TOKEN`, `COOLIFY_APP` (UUID приложения).
 
 ## Вход на сайт
 
